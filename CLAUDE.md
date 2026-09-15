@@ -12,6 +12,11 @@ working in it:
 
 Workspace rules:
 
+- `experiments/<name>/` holds paper experiments (see `experiments/README.md`):
+  configs, pins, `AGENTS.md` data procedure, small results. Never data,
+  checkpoints, or stores. Runs go through `crates/ddrs/` with an explicit
+  `--workspace crates/ddrs/.ddrs`.
+
 - `[patch.crates-io]` and `[profile.release]` live only in the root
   `Cargo.toml`. Never add them to a member crate; cargo ignores them there.
 - One `target/` at the root. `cargo test -p ddrs` runs with `crates/ddrs/` as

@@ -26,6 +26,12 @@ build (see `crates/ddrs/.claude/skills/ddrs-dev`, trap T12).
 
 Python bindings are per-crate `uv` projects; nothing is shared at the root.
 
+## Experiments
+
+`experiments/<name>/` is the reproducible unit a paper cites: arm configs,
+data pins, the data procedure in `AGENTS.md`, and small committed results.
+See `experiments/README.md`. Data never lives in git.
+
 ## Submodules
 
 `crates/ddrs` and `crates/corduroy` are git submodules. `.gitmodules` records
