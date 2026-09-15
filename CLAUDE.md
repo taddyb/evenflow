@@ -22,6 +22,10 @@ Workspace rules:
 - Do not hoist `research/`, `docs/`, or skills to the root.
 - Design and brainstorming documents (superpowers specs and plans) are local
   working notes under the gitignored `docs/superpowers/`; never commit them.
-- Provenance: ddrs was imported from `taddyb/ddrs@d86f8c7`, corduroy from
-  `DeepGroundwater/corduroy@bb36dd9`. `git blame` starts at the import
-  commit; the archived source repos hold earlier history.
+- Submodules: `crates/ddrs` and `crates/corduroy` are git submodules of
+  `taddyb/ddrs` and `DeepGroundwater/corduroy`. `.gitmodules` records each path
+  and URL, and the gitlink pins the exact commit; `git submodule status` shows
+  the pins, and `git submodule update --init --recursive` checks them out after
+  a clone. Each submodule keeps its own repository, history, blame, CI, and
+  tags; nothing is archived. Never edit files inside a submodule from this
+  repo; change them upstream and bump the pointer.
