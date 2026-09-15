@@ -1,0 +1,6 @@
+[submodule "crates/ddrs"]
+	path = crates/ddrs
+	url = git@github.com:taddyb/ddrs.git
+[submodule "crates/corduroy"]
+	path = crates/corduroy
+	url = git@github.com:DeepGroundwater/corduroy.git

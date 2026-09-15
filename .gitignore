@@ -1,0 +1,8 @@
+# Workspace-level. Each crate keeps its own .gitignore for crate-local rules.
+/target/
+.cargo/
+.claude/settings.local.json
+.claude/worktrees/
+__pycache__/
+# Superpowers design docs are local working notes, never committed (user rule 2026-09-13).
+/docs/superpowers/
