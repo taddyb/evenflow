@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 # No path filters: a required check skipped by a path filter leaves PRs
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 # Branch protection (applied once, after the first green master run):
-#   gh api -X PUT repos/taddyb/evenflow/branches/main/protection --input - <<'EOF'
+#   gh api -X PUT repos/taddyb/evenflow/branches/master/protection --input - <<'EOF'
 #   {
 #     "required_status_checks": {
 #       "strict": false,
