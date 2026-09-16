@@ -109,6 +109,22 @@ pub fn feed(feed: &Feed) -> String {
 }
 
 fn experiment_card(card: &ExperimentCard) -> String {
+    // An experiment that would not load says so on its own card, named by
+    // its directory, and costs the feed nothing else.
+    if let Some(error) = &card.error {
+        return format!(
+            r#"<div class="card mb-3">
+  <div class="card-body">
+    <h2 class="card-title h5">{name}</h2>
+    <p class="card-text text-danger mb-0">{error}</p>
+  </div>
+</div>
+"#,
+            name = escape(&card.name),
+            error = escape(error),
+        );
+    }
+
     let check = match card.check {
         CheckBadge::Pass => badge("text-bg-success", "CHECK PASS"),
         CheckBadge::Fail => badge("text-bg-danger", "CHECK FAIL"),

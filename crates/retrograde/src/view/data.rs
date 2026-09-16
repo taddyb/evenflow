@@ -51,11 +51,17 @@ pub struct CellCard {
 
 #[derive(Debug, Clone)]
 pub struct ExperimentCard {
+    /// The experiment's `name:`, or the directory name when the file could
+    /// not be loaded.
     pub name: String,
     pub question: String,
     pub arm_count: usize,
     pub cells: Vec<CellCard>,
     pub check: CheckBadge,
+    /// Why this card is empty. One unreadable `experiment.yaml` must not
+    /// take the feed down with it, so the failure is rendered on its own
+    /// card and every other card still gathers.
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -125,7 +131,7 @@ pub struct Profile {
 
 /// The feed: every experiment, then every run in the workspace.
 pub fn feed(root: &Path, workspace: &Path) -> Result<Feed, Error> {
-    let experiments = experiment_cards(root)?;
+    let experiments = experiment_cards(root);
     let runs = run_rows(workspace, &experiments)?;
     Ok(Feed { experiments, runs })
 }
@@ -143,7 +149,7 @@ pub fn profile(root: &Path, workspace: &Path, run_id: &str) -> Result<Option<Pro
 
     Ok(Some(Profile {
         run_id: run_id.to_string(),
-        origin: origins(root)?
+        origin: origins(root)
             .into_iter()
             .find_map(|(id, o)| (id == run_id).then_some(o)),
         status: string_at(&manifest, "status"),
@@ -179,65 +185,78 @@ pub fn run_dir(workspace: &Path, run_id: &str) -> PathBuf {
 }
 
 /// Every `experiments/*/experiment.yaml` under `root`, in directory order.
-fn experiment_cards(root: &Path) -> Result<Vec<ExperimentCard>, Error> {
-    let mut cards = Vec::new();
-    for dir in experiment_dirs(root) {
-        let path = dir.join("experiment.yaml");
-        let experiment = Experiment::load(&path)?;
-        let mut cells = Vec::new();
-        for cell in crate::cell::cells(&dir, &experiment)? {
-            let status = Status::read(&cell.status_path())?;
-            let manifest = cell.manifest_path();
-            // `Row::with_manifest` is the crate's manifest-metric reader;
-            // its first two columns are median NSE and median KGE.
-            let row = if status.status == CellStatus::Done && manifest.is_file() {
-                Row::empty(
-                    &cell.arm,
-                    cell.seed,
-                    status.status,
-                    status.run_id.as_deref(),
-                )
-                .with_manifest(&crate::read_json(&manifest)?)
-            } else {
-                Row::empty(
-                    &cell.arm,
-                    cell.seed,
-                    status.status,
-                    status.run_id.as_deref(),
-                )
-            };
-            cells.push(CellCard {
-                arm: cell.arm.clone(),
-                seed: cell.seed,
-                status: status.status,
-                run_id: status.run_id.clone(),
-                median_nse: short(&row.metrics[0]),
-                median_kge: short(&row.metrics[1]),
-            });
-        }
+/// A directory whose experiment could not be read becomes a card carrying
+/// the error instead of one, so the rest of the feed still renders.
+fn experiment_cards(root: &Path) -> Vec<ExperimentCard> {
+    experiment_dirs(root)
+        .into_iter()
+        .map(|dir| {
+            card_for(&dir).unwrap_or_else(|error| ExperimentCard {
+                name: dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                question: String::new(),
+                arm_count: 0,
+                cells: Vec::new(),
+                check: CheckBadge::None,
+                error: Some(error.to_string()),
+            })
+        })
+        .collect()
+}
 
-        // `check` is only meaningful once the experiment claims something.
-        let badge = if experiment.expected.is_empty() {
-            CheckBadge::None
-        } else if check(&CheckOptions {
-            experiment: path.clone(),
-        })?
-        .passed
-        {
-            CheckBadge::Pass
+fn card_for(dir: &Path) -> Result<ExperimentCard, Error> {
+    let path = dir.join("experiment.yaml");
+    let experiment = Experiment::load(&path)?;
+    let mut cells = Vec::new();
+    for cell in crate::cell::cells(dir, &experiment)? {
+        let status = Status::read(&cell.status_path())?;
+        let manifest = cell.manifest_path();
+        // `Row::with_manifest` is the crate's manifest-metric reader;
+        // its first two columns are median NSE and median KGE.
+        let row = Row::empty(
+            &cell.arm,
+            cell.seed,
+            status.status,
+            status.run_id.as_deref(),
+        );
+        let row = if status.status == CellStatus::Done && manifest.is_file() {
+            row.with_manifest(&crate::read_json(&manifest)?)
         } else {
-            CheckBadge::Fail
+            row
         };
-
-        cards.push(ExperimentCard {
-            name: experiment.name.clone(),
-            question: experiment.question.trim().to_string(),
-            arm_count: experiment.arms.len(),
-            cells,
-            check: badge,
+        cells.push(CellCard {
+            arm: cell.arm.clone(),
+            seed: cell.seed,
+            status: status.status,
+            run_id: status.run_id.clone(),
+            median_nse: short(&row.metrics[0]),
+            median_kge: short(&row.metrics[1]),
         });
     }
-    Ok(cards)
+
+    // `check` is only meaningful once the experiment claims something.
+    let badge = if experiment.expected.is_empty() {
+        CheckBadge::None
+    } else if check(&CheckOptions {
+        experiment: path.clone(),
+    })?
+    .passed
+    {
+        CheckBadge::Pass
+    } else {
+        CheckBadge::Fail
+    };
+
+    Ok(ExperimentCard {
+        name: experiment.name.clone(),
+        question: experiment.question.trim().to_string(),
+        arm_count: experiment.arms.len(),
+        cells,
+        check: badge,
+        error: None,
+    })
 }
 
 fn experiment_dirs(root: &Path) -> Vec<PathBuf> {
@@ -248,18 +267,38 @@ fn experiment_dirs(root: &Path) -> Vec<PathBuf> {
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| p.join("experiment.yaml").is_file())
+        .filter(|p| !is_template(p))
         .collect();
     dirs.sort();
     dirs
 }
 
+/// `experiments/_template/` — and anything else whose directory name starts
+/// with `_` — is the shape of an experiment, not one. `experiments/README.md`
+/// is where that convention lives.
+fn is_template(dir: &Path) -> bool {
+    dir.file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.starts_with('_'))
+        .unwrap_or(false)
+}
+
 /// `run_id -> Origin` for every cell of every experiment that recorded one.
-fn origins(root: &Path) -> Result<Vec<(String, Origin)>, Error> {
+/// Best-effort: an experiment that cannot be read attributes nothing rather
+/// than failing the profile page that asked.
+fn origins(root: &Path) -> Vec<(String, Origin)> {
     let mut out = Vec::new();
     for dir in experiment_dirs(root) {
-        let experiment = Experiment::load(&dir.join("experiment.yaml"))?;
-        for cell in crate::cell::cells(&dir, &experiment)? {
-            let status = Status::read(&cell.status_path())?;
+        let Ok(experiment) = Experiment::load(&dir.join("experiment.yaml")) else {
+            continue;
+        };
+        let Ok(cells) = crate::cell::cells(&dir, &experiment) else {
+            continue;
+        };
+        for cell in cells {
+            let Ok(status) = Status::read(&cell.status_path()) else {
+                continue;
+            };
             if let Some(id) = status.run_id {
                 out.push((
                     id,
@@ -272,7 +311,7 @@ fn origins(root: &Path) -> Result<Vec<(String, Origin)>, Error> {
             }
         }
     }
-    Ok(out)
+    out
 }
 
 /// Every `<workspace>/runs/*/manifest.json`, newest `started_at` first.

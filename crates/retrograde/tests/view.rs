@@ -433,3 +433,65 @@ async fn no_page_references_a_cdn() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_template_directory_is_not_an_experiment() {
+    let fx = Fixture::new();
+    // A perfectly valid experiment.yaml — it is the leading underscore on
+    // the directory that keeps it off the feed.
+    write(
+        &fx.root.join("experiments/_template/experiment.yaml"),
+        "name: template-placeholder\narms: []\nexpected: {}\n",
+    );
+
+    let (status, body) = get(fx.app(), "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !body.contains("template-placeholder"),
+        "a _-prefixed directory is a template, not an experiment"
+    );
+    assert!(
+        !body.contains("_template"),
+        "the template directory is named"
+    );
+    assert!(
+        body.contains("juniata-repro"),
+        "the real experiment must still render"
+    );
+}
+
+#[tokio::test]
+async fn a_broken_experiment_yaml_degrades_to_one_card() {
+    let fx = Fixture::new();
+    let bad = fx.root.join("experiments/broken/experiment.yaml");
+    write(&bad, "name: broken\narms: [\n");
+
+    let (status, body) = get(fx.app(), "/").await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "one bad file must not fail the feed"
+    );
+
+    // The card names the directory and carries the load error verbatim.
+    assert!(body.contains("broken"), "the bad directory is not named");
+    let error = retrograde::experiment::Experiment::load(&bad)
+        .expect_err("that yaml does not parse")
+        .to_string();
+    assert!(
+        body.contains(&retrograde::view::html::escape(&error)),
+        "the card should carry the load error, escaped: {error}"
+    );
+    assert!(
+        body.contains("text-danger"),
+        "the error is not marked as one"
+    );
+
+    // Everything else still gathered.
+    assert!(body.contains("juniata-repro"), "the good card is gone");
+    assert!(
+        body.contains("CHECK PASS"),
+        "the good card lost its verdict"
+    );
+    assert!(body.contains(DONE_RUN), "the runs table is gone");
+}
