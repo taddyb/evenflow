@@ -6788,6 +6788,15 @@ dependencies = [
 [[package]]
 name = "retrograde"
 version = "0.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "rfc6979"

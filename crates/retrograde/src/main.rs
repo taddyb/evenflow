@@ -1,0 +1,81 @@
+//! `retrograde` CLI. Argument parsing only; the work is in the library.
+
+use std::path::PathBuf;
+use std::process::ExitCode;
+
+use clap::{Parser, Subcommand};
+
+use retrograde::{sweep, SweepOptions};
+
+#[derive(Parser)]
+#[command(
+    name = "retrograde",
+    about = "The evenflow experiment operator: run an experiment's arms x \
+             seeds through ddrs and record the results."
+)]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Cmd,
+}
+
+#[derive(Subcommand)]
+enum Cmd {
+    /// Run every arm x seed of an experiment through ddrs, writing
+    /// results/<arm>/seed-<s>/ and results/summary.csv.
+    Sweep {
+        /// Path to experiments/<name>/experiment.yaml.
+        experiment: PathBuf,
+        /// Only run cells that are `failed` or `pending`.
+        #[arg(long)]
+        only_failed: bool,
+        /// Workspace root (default: nearest Cargo.toml with [workspace]).
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// ddrs binary (default: <root>/target/release/ddrs).
+        #[arg(long)]
+        ddrs: Option<PathBuf>,
+        /// ddrs workspace (default: <root>/crates/ddrs/.ddrs).
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+        /// Passed through to `ddrs run`.
+        #[arg(long, value_parser = ["cpu", "cuda"])]
+        backend: Option<String>,
+    },
+}
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+    match cli.cmd {
+        Cmd::Sweep {
+            experiment,
+            only_failed,
+            root,
+            ddrs,
+            workspace,
+            backend,
+        } => {
+            let opts = SweepOptions {
+                experiment,
+                only_failed,
+                root,
+                ddrs,
+                workspace,
+                backend,
+            };
+            match sweep(&opts) {
+                Ok(outcome) => {
+                    print!("{}", outcome.table);
+                    if outcome.all_done {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::from(1)
+                    }
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+    }
+}

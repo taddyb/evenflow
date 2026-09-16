@@ -3,4 +3,23 @@ name = "retrograde"
 version = "0.0.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Reserved: the evenflow operator. Empty until its own spec lands."
+description = "The evenflow experiment operator: runs an experiment.yaml's arms x seeds through ddrs and records the results."
+
+[lib]
+name = "retrograde"
+path = "src/lib.rs"
+
+[[bin]]
+name = "retrograde"
+path = "src/main.rs"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "1"
+
+[dev-dependencies]
+tempfile = "3"
