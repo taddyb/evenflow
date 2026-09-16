@@ -117,6 +117,51 @@ store is local until you promote it: `notes export <run-id>` writes
 file is what gets committed. A run no cell claims prints the markdown instead
 of writing it.
 
+## Reproduce a past run
+
+A run that no experiment claims still has a record: its `manifest.json` and
+the `config.yaml` snapshot beside it. `reproduce` reads that record, re-runs
+the same config, and compares the new metrics to the recorded ones.
+
+```bash
+target/release/retrograde reproduce <run-id> --backend cpu --dry-run
+target/release/retrograde reproduce <run-id> --backend cpu
+target/release/retrograde reproduce experiments/<name>/results/<arm>/seed-<s>/manifest.json --backend cpu
+```
+
+The target is a run id in the ddrs workspace, or a path to a `manifest.json`,
+or the directory holding one. A committed cell and a live run directory are
+both valid records, so a reproduction can be reached through git alone.
+
+The report has five sections. `record` says what is being reproduced and
+refuses a run whose `status` is not `ok`. `code` compares the record's ddrs
+sha against the `crates/ddrs` submodule now, and says when they differ that
+the question has changed. `sources` runs `ddrs plan` and prints ddrs's own
+verdict on whether the data moved; drift stops the reproduction unless
+`--allow-drift`. `run` invokes `ddrs run` with the record's workflow. `compare`
+lists every metric in both manifests against `--tolerance`, and the last line
+is `REPRODUCED` or `NOT REPRODUCED`. Keys ending `_seconds` are printed with
+their difference but do not vote, because a run's duration measures the
+machine and not the model. Exit 0 means reproduced, 1 means not, 2 is a hard
+error, 4 is unallowed drift. `--dry-run` stops after `sources`.
+
+Everything written goes to `<workspace>/reproductions/<original-run-id>/`:
+the copied `config.yaml`, the rendered `report.txt`, and the new run's
+`manifest.json`. Nothing is written next to the record, so reproducing a
+committed cell leaves git untouched. `view` reads that directory and shows
+the verdict and the report on the original run's profile page.
+
+### Pass the backend the original run used
+
+ddrs does not record which backend executed a run. The manifest's `system`
+probe is blank on a CPU run, and `backend` appears only inside the smoke-test
+block, so `reproduce` cannot infer the device from the record. CPU and CUDA
+produce different numbers: reproducing the Juniata record on CUDA diverges at
+epoch 1, and on CPU every metric returns bit-identical. Pass `--backend`
+matching the original run. The fix is for ddrs to record the backend in the
+manifest, at which point `reproduce` can default to it and warn on a
+mismatch.
+
 ## Rules
 
 - Paper data lives on Zenodo; test fixtures live in git; nothing large here.

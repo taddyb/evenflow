@@ -71,6 +71,16 @@ pub struct ReproduceOptions {
     pub dry_run: bool,
 }
 
+/// The last line of `report.txt` when every metric came back within
+/// tolerance. `view`'s profile page matches the same constant to colour its
+/// badge, so a change to the wording cannot leave the page reading for a
+/// string nothing writes any more.
+pub(crate) const REPRODUCED: &str = "REPRODUCED";
+/// The last line of `report.txt` when a metric fell outside tolerance or was
+/// missing from one side. It *contains* [`REPRODUCED`], so every reader must
+/// match the whole line and never a substring.
+pub(crate) const NOT_REPRODUCED: &str = "NOT REPRODUCED";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
     /// Every compared metric was within tolerance.
@@ -269,9 +279,9 @@ pub fn reproduce(opts: &ReproduceOptions) -> Result<ReproduceOutcome, Error> {
         Verdict::NotReproduced
     };
     report.line(if reproduced {
-        "REPRODUCED"
+        REPRODUCED
     } else {
-        "NOT REPRODUCED"
+        NOT_REPRODUCED
     });
     finish(verdict, report, &repro_dir)
 }

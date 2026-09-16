@@ -9,7 +9,7 @@ one autograd tape.
 | `crates/ddrs` | Distributed differentiable Muskingum-Cunge routing in Rust (BURN), with the `ddrs` CLI, KAN parameter head, training, evaluation, and paper studies. Git submodule of `taddyb/ddrs`. | `crates/ddrs/README.md`, `crates/ddrs/CLAUDE.md` |
 | `crates/ddrs/ddrs-py` | PyO3 bindings for ddrs: read-only CPU inference and parameter export. | `crates/ddrs/ddrs-py/README.md` |
 | `crates/corduroy` | Adaptive-mesh precipitation mapping from ERA5 Zarr v3 on GCS, with a small overland-flow and channel model. Git submodule of `DeepGroundwater/corduroy`. | `crates/corduroy/README.md` |
-| `crates/retrograde` | The evenflow experiment operator. `sweep` runs an experiment's arms x seeds through ddrs; `check` compares the results against what the experiment claims; `view` serves a local page per experiment and run; `plot` draws a run's hydrographs and metrics; `notes` keeps notes on a run. | `experiments/README.md` |
+| `crates/retrograde` | The evenflow experiment operator. `sweep` runs an experiment's arms x seeds through ddrs; `check` compares the results against what the experiment claims; `view` serves a local page per experiment and run; `plot` draws a run's hydrographs and metrics; `notes` keeps notes on a run; `reproduce` re-runs a past run from its record. | `experiments/README.md` |
 
 ## Build
 
@@ -42,6 +42,7 @@ target/release/retrograde sweep experiments/juniata-repro/experiment.yaml --back
 target/release/retrograde check experiments/juniata-repro/experiment.yaml
 target/release/retrograde plot <run-id>
 target/release/retrograde view
+target/release/retrograde reproduce <run-id> --backend cpu
 ```
 
 `sweep` runs every arm x seed through `ddrs plan` and `ddrs run --workflow
@@ -52,6 +53,16 @@ costs nothing. `check` compares those results against the experiment's
 `CHECK FAIL`; it reads only committed files. `experiments/juniata-repro/` is
 a worked example: the Juniata bundle at routed NSE 0.790 / KGE 0.881, 21 s on
 CPU.
+
+`reproduce` takes a run that no experiment claims and re-runs it from its
+record: the `manifest.json` and the `config.yaml` snapshot beside it. It
+reports the code and the sources it ran against, compares every metric to the
+recorded one, and ends with `REPRODUCED` or `NOT REPRODUCED`. The target can
+also be a committed cell's `manifest.json`, so a record in git is enough.
+Pass `--backend` matching the original run, because ddrs does not record which
+device executed it. Output goes to
+`crates/ddrs/.ddrs/reproductions/<original-run-id>/`, never next to the
+record.
 
 `plot` writes a run's hydrographs and a routed-against-baseline metrics chart
 into `<run-dir>/plots/`, using the uv project at `crates/retrograde/py/`.

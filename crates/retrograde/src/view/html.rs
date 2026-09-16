@@ -349,13 +349,14 @@ fn reproductions_card(p: &Profile) -> String {
     )
 }
 
-/// The verdict line as `reproduce` wrote it. `NOT REPRODUCED` contains
-/// `REPRODUCED`, so the match is on the whole line and nothing else;
-/// anything unrecognised is shown verbatim rather than guessed at.
+/// The verdict line as `reproduce` wrote it, matched against the constants
+/// `reproduce` writes. `NOT REPRODUCED` contains `REPRODUCED`, so the match
+/// is on the whole line and nothing else; anything unrecognised is shown
+/// verbatim rather than guessed at.
 fn verdict_badge(verdict: &str) -> String {
     let class = match verdict {
-        "REPRODUCED" => "text-bg-success",
-        "NOT REPRODUCED" => "text-bg-danger",
+        crate::reproduce::REPRODUCED => "text-bg-success",
+        crate::reproduce::NOT_REPRODUCED => "text-bg-danger",
         _ => "text-bg-secondary",
     };
     if verdict.is_empty() {

@@ -9,7 +9,7 @@ working in it:
   prefix. "The repo's skills" in ddrs documentation means that directory.
 - `crates/corduroy/README.md` — precipitation mapping.
 - `experiments/README.md` — `crates/retrograde`, the experiment operator
-  (`sweep`, `check`, `view`, `plot`, `notes`).
+  (`sweep`, `check`, `view`, `plot`, `notes`, `reproduce`).
 
 Workspace rules:
 
@@ -35,6 +35,15 @@ Workspace rules:
   thing that puts a note into git, as `notes.md` in the cell that claims the
   run. A note typed while browsing is not a research note; export the ones
   that are.
+
+- `retrograde reproduce <target>` re-runs a past run from its record and
+  compares the metrics. Everything it writes goes under
+  `<workspace>/reproductions/<original-run-id>/`: the copied `config.yaml`,
+  the `report.txt`, and the new run's `manifest.json`. It never writes next to
+  the original record, so reproducing a committed experiment cell leaves git
+  untouched. The new ddrs run itself lands in `<workspace>/runs/` like any
+  other. Pass `--backend` matching the original run; ddrs does not record the
+  device, and CPU and CUDA give different numbers.
 
 - `[patch.crates-io]` and `[profile.release]` live only in the root
   `Cargo.toml`. Never add them to a member crate; cargo ignores them there.
