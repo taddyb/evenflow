@@ -17,6 +17,7 @@ pub mod cell;
 pub mod check;
 pub mod experiment;
 pub mod notes;
+pub mod plot;
 pub mod runner;
 pub mod summary;
 pub mod view;
@@ -26,6 +27,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 pub use crate::check::{check, CheckOptions, CheckOutcome};
+pub use crate::plot::{plot, PlotOptions};
 
 use crate::cell::{Cell, CellStatus, Status};
 use crate::experiment::Experiment;
