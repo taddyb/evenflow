@@ -116,6 +116,22 @@ pub struct SourceRow {
     pub drift: Drift,
 }
 
+/// A reproduction of a run: what `retrograde reproduce <run-id>` left in
+/// `<workspace>/reproductions/<run-id>/`.
+#[derive(Debug, Clone)]
+pub struct Reproduction {
+    /// `started_at` of the new run's manifest — when the re-run began.
+    pub at: String,
+    /// The new run's id, which is a run of this workspace like any other.
+    pub run_id: String,
+    /// The report's last non-empty line: `REPRODUCED`, `NOT REPRODUCED`,
+    /// `DRIFT`, or the dry-run line. Verbatim, so a wording `view` has
+    /// never heard of still reaches the page.
+    pub verdict: String,
+    /// The whole `report.txt`, metric table included.
+    pub report: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Profile {
     pub run_id: String,
@@ -143,6 +159,9 @@ pub struct Profile {
     /// writes, and a repo it cannot write to must still browse: the card
     /// carries the failure instead of the page returning 500.
     pub notes_error: Option<String>,
+    /// The reproduction of this run, when one has been attempted. `None`
+    /// renders no card at all.
+    pub reproduction: Option<Reproduction>,
 }
 
 /// The feed: every experiment, then every run in the workspace.
@@ -199,7 +218,39 @@ pub fn profile(root: &Path, workspace: &Path, run_id: &str) -> Result<Option<Pro
         log_tail: log_tail(&dir),
         notes,
         notes_error,
+        reproduction: reproduction(workspace, run_id),
     }))
+}
+
+/// What `retrograde reproduce <run_id>` wrote, if anything. The directory
+/// existing is what puts the card on the page; the files inside it are read
+/// best-effort, so a reproduction that died before writing its report still
+/// says that it was attempted.
+fn reproduction(workspace: &Path, run_id: &str) -> Option<Reproduction> {
+    let dir = crate::reproduce::reproduction_dir(workspace, run_id);
+    if !dir.is_dir() {
+        return None;
+    }
+    let report = fs::read_to_string(dir.join("report.txt")).unwrap_or_default();
+    let manifest = crate::read_json(&dir.join("manifest.json")).unwrap_or(serde_json::Value::Null);
+    Some(Reproduction {
+        at: string_at(&manifest, "started_at"),
+        run_id: string_at(&manifest, "run_id"),
+        verdict: verdict(&report),
+        report,
+    })
+}
+
+/// The report's verdict: its last non-empty line, trimmed. `reproduce`
+/// writes the verdict last, whatever the verdict is.
+fn verdict(report: &str) -> String {
+    report
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 /// `<workspace>/runs/<id>`. The caller has already checked `id` is a single

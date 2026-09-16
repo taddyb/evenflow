@@ -180,7 +180,7 @@ pub fn reproduce(opts: &ReproduceOptions) -> Result<ReproduceOutcome, Error> {
     // 3. Sources ------------------------------------------------------
     // The record's config is the thing that gets re-run, and ddrs is the
     // authority on whether the data underneath it moved.
-    let repro_dir = workspace.join("reproductions").join(&run_id);
+    let repro_dir = reproduction_dir(&workspace, &run_id);
     let config = repro_dir.join("config.yaml");
     let record_config = record_dir.join("config.yaml");
     if !record_config.is_file() {
@@ -274,6 +274,14 @@ pub fn reproduce(opts: &ReproduceOptions) -> Result<ReproduceOutcome, Error> {
         "NOT REPRODUCED"
     });
     finish(verdict, report, &repro_dir)
+}
+
+/// `<workspace>/reproductions/<original run id>/`: where a reproduction's
+/// copied `config.yaml`, its `report.txt` and the new run's `manifest.json`
+/// are written. `view`'s profile page reads the same directory, so the
+/// layout is spelled once.
+pub(crate) fn reproduction_dir(workspace: &Path, original_run_id: &str) -> PathBuf {
+    workspace.join("reproductions").join(original_run_id)
 }
 
 /// Write `report.txt` beside the copied config and hand back the outcome.
