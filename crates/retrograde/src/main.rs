@@ -5,13 +5,14 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
-use retrograde::{sweep, SweepOptions};
+use retrograde::{check, sweep, CheckOptions, SweepOptions};
 
 #[derive(Parser)]
 #[command(
     name = "retrograde",
     about = "The evenflow experiment operator: run an experiment's arms x \
-             seeds through ddrs and record the results."
+             seeds through ddrs, record the results, and check them against \
+             what the experiment claims."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -40,6 +41,12 @@ enum Cmd {
         /// Passed through to `ddrs run`.
         #[arg(long, value_parser = ["cpu", "cuda"])]
         backend: Option<String>,
+    },
+    /// Compare every done cell's metrics against the experiment's
+    /// `expected:` block, within each arm's absolute tolerance.
+    Check {
+        /// Path to experiments/<name>/experiment.yaml.
+        experiment: PathBuf,
     },
 }
 
@@ -77,5 +84,19 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Cmd::Check { experiment } => match check(&CheckOptions { experiment }) {
+            Ok(outcome) => {
+                print!("{}", outcome.report);
+                if outcome.passed {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::from(1)
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::from(2)
+            }
+        },
     }
 }

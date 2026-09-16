@@ -11,6 +11,7 @@
 //! `experiments/<name>/sources.lock`. It never rewrites `experiment.yaml`.
 
 pub mod cell;
+pub mod check;
 pub mod experiment;
 pub mod runner;
 pub mod summary;
@@ -18,6 +19,8 @@ pub mod summary;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+
+pub use crate::check::{check, CheckOptions, CheckOutcome};
 
 use crate::cell::{Cell, CellStatus, Status};
 use crate::experiment::Experiment;
@@ -110,21 +113,7 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
 
     // Cells, sorted by arm then seed — the order they run and the order
     // summary.csv lists them.
-    let mut cells = Vec::new();
-    for arm in &experiment.arms {
-        for seed in arm.seed_list()? {
-            cells.push(Cell {
-                arm: arm.name.clone(),
-                seed,
-                dir: exp_dir
-                    .join("results")
-                    .join(&arm.name)
-                    .join(format!("seed-{seed}")),
-                arm_config: exp_dir.join(&arm.config),
-            });
-        }
-    }
-    cells.sort_by(|a, b| (a.arm.as_str(), a.seed).cmp(&(b.arm.as_str(), b.seed)));
+    let cells = cell::cells(&exp_dir, &experiment)?;
 
     let lock_dest = exp_dir.join("sources.lock");
     let mut lock_pinned = false;
@@ -315,7 +304,7 @@ fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
-fn canonical(path: &Path) -> Result<PathBuf, Error> {
+pub(crate) fn canonical(path: &Path) -> Result<PathBuf, Error> {
     fs::canonicalize(path).map_err(|source| Error::Io {
         path: path.to_path_buf(),
         source,
@@ -333,7 +322,7 @@ fn absolute(path: &Path) -> Result<PathBuf, Error> {
     Ok(cwd.join(path))
 }
 
-fn read_json(path: &Path) -> Result<serde_json::Value, Error> {
+pub(crate) fn read_json(path: &Path) -> Result<serde_json::Value, Error> {
     let text = fs::read_to_string(path).map_err(|source| Error::Io {
         path: path.to_path_buf(),
         source,

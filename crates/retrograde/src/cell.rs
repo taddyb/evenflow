@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::experiment::Experiment;
 use crate::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,6 +116,27 @@ impl Cell {
     pub fn label(&self) -> String {
         format!("{}/seed-{}", self.arm, self.seed)
     }
+}
+
+/// Every arm x seed of an experiment, sorted by arm then seed — the order a
+/// sweep runs them in and the order `summary.csv` and `check` list them in.
+pub fn cells(exp_dir: &Path, experiment: &Experiment) -> Result<Vec<Cell>, Error> {
+    let mut cells = Vec::new();
+    for arm in &experiment.arms {
+        for seed in arm.seed_list()? {
+            cells.push(Cell {
+                arm: arm.name.clone(),
+                seed,
+                dir: exp_dir
+                    .join("results")
+                    .join(&arm.name)
+                    .join(format!("seed-{seed}")),
+                arm_config: exp_dir.join(&arm.config),
+            });
+        }
+    }
+    cells.sort_by(|a, b| (a.arm.as_str(), a.seed).cmp(&(b.arm.as_str(), b.seed)));
+    Ok(cells)
 }
 
 /// Load the arm config as an opaque YAML mapping, set the two top-level seed
