@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+use retrograde::view::{serve, ViewOptions};
 use retrograde::{check, sweep, CheckOptions, SweepOptions};
 
 #[derive(Parser)]
@@ -48,6 +49,19 @@ enum Cmd {
         /// Path to experiments/<name>/experiment.yaml.
         experiment: PathBuf,
     },
+    /// Serve a read-only feed of the experiments and the workspace's runs
+    /// on 127.0.0.1, with a profile page per run.
+    View {
+        /// Workspace root holding experiments/ (default: nearest
+        /// Cargo.toml with [workspace]).
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// ddrs workspace (default: <root>/crates/ddrs/.ddrs).
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+        #[arg(long, default_value_t = 8787)]
+        port: u16,
+    },
 }
 
 fn main() -> ExitCode {
@@ -78,6 +92,26 @@ fn main() -> ExitCode {
                         ExitCode::from(1)
                     }
                 }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+        Cmd::View {
+            root,
+            workspace,
+            port,
+        } => {
+            let opts = ViewOptions {
+                root,
+                workspace,
+                port,
+            };
+            // `serve` only returns when the listener fails; Ctrl-C ends the
+            // process without coming back through here.
+            match serve(&opts) {
+                Ok(()) => ExitCode::SUCCESS,
                 Err(e) => {
                     eprintln!("error: {e}");
                     ExitCode::from(2)

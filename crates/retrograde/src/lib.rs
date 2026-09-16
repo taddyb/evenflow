@@ -15,6 +15,7 @@ pub mod check;
 pub mod experiment;
 pub mod runner;
 pub mod summary;
+pub mod view;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -282,7 +283,7 @@ fn pin_sources_lock(workspace: &Path, dest: &Path) -> Result<bool, Error> {
 }
 
 /// The nearest ancestor holding a `Cargo.toml` with a `[workspace]` table.
-fn find_workspace_root(start: &Path) -> Result<PathBuf, Error> {
+pub(crate) fn find_workspace_root(start: &Path) -> Result<PathBuf, Error> {
     for dir in start.ancestors() {
         let manifest = dir.join("Cargo.toml");
         if !manifest.is_file() {
