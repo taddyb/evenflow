@@ -122,6 +122,7 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
         cwd: root.join("crates/ddrs"),
         workspace: workspace.clone(),
         backend: opts.backend.clone(),
+        workflow: "train-and-test".to_string(),
     };
 
     // Cells, sorted by arm then seed — the order they run and the order

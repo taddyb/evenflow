@@ -38,6 +38,10 @@ pub struct Outcome {
     pub code: Option<i32>,
     pub run_dir: Option<PathBuf>,
     pub last_stderr: Option<String>,
+    /// Every line ddrs wrote to stderr, in order. `reproduce` prints ddrs's
+    /// own drift lines rather than paraphrasing them, which needs more than
+    /// the last one.
+    pub stderr: Vec<String>,
 }
 
 impl Outcome {
@@ -53,16 +57,19 @@ pub struct Ddrs {
     pub cwd: PathBuf,
     pub workspace: PathBuf,
     pub backend: Option<String>,
+    /// The `--workflow` both subcommands are given. `sweep` always runs
+    /// `train-and-test`; `reproduce` runs whatever the record says it ran.
+    pub workflow: String,
 }
 
 impl Ddrs {
-    /// `ddrs --workspace W --config C plan --workflow train-and-test`.
+    /// `ddrs --workspace W --config C plan --workflow <workflow>`.
     /// Locks sources and caches the baseline; cached thereafter.
     pub fn plan(&self, config: &Path) -> Result<Outcome, Error> {
         self.exec(config, "plan", &[])
     }
 
-    /// `ddrs --workspace W --config C run --workflow train-and-test --strict
+    /// `ddrs --workspace W --config C run --workflow <workflow> --strict
     /// [--backend B]`. `plan` has no `--backend`, so it is passed here only.
     pub fn run(&self, config: &Path) -> Result<Outcome, Error> {
         let mut extra = vec!["--strict".to_string()];
@@ -82,7 +89,7 @@ impl Ddrs {
             .arg(config)
             .arg(sub)
             .arg("--workflow")
-            .arg("train-and-test")
+            .arg(&self.workflow)
             .args(extra)
             // stdout goes straight to the terminal; stderr is teed so the
             // run-dir marker and the last line can be read out of it.
@@ -101,6 +108,7 @@ impl Ddrs {
 
         let mut run_dir = None;
         let mut last_stderr = None;
+        let mut captured = Vec::new();
         for line in BufReader::new(stderr).lines() {
             let line = line.map_err(spawn_err)?;
             eprintln!("{line}");
@@ -110,6 +118,7 @@ impl Ddrs {
             if !line.trim().is_empty() {
                 last_stderr = Some(line.trim().to_string());
             }
+            captured.push(line);
         }
         let status = child.wait().map_err(spawn_err)?;
 
@@ -117,6 +126,7 @@ impl Ddrs {
             code: status.code(),
             run_dir,
             last_stderr,
+            stderr: captured,
         })
     }
 }
