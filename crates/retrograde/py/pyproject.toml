@@ -6,7 +6,6 @@ requires-python = ">=3.12"
 dependencies = [
     "matplotlib",
     "numpy",
-    "xarray",
     "zarr>=3",
 ]
 
