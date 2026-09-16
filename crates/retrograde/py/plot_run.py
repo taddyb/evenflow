@@ -199,6 +199,15 @@ def score_label(sim: np.ndarray, obs: np.ndarray) -> str:
     return ", ".join(scores)
 
 
+def hydrograph_title(gage_id: str, sim: np.ndarray, obs: np.ndarray) -> str:
+    """The gauge and how the routed series scored against its observation.
+
+    A gauge whose observation is all-NaN or flat has no score, and says so
+    rather than showing a number that is not one.
+    """
+    return f"gauge {gage_id}: routed {score_label(sim, obs)}"
+
+
 def hydrograph(
     out: Path,
     gage_id: str,
@@ -235,15 +244,9 @@ def hydrograph(
             label=label,
         )
 
-    axes.plot(
-        evaluation.time,
-        routed,
-        color=ROUTED_COLOR,
-        lw=0.9,
-        label=f"routed ({score_label(routed, observed)})",
-    )
+    axes.plot(evaluation.time, routed, color=ROUTED_COLOR, lw=0.9, label="routed")
 
-    axes.set_title(f"gauge {gage_id}")
+    axes.set_title(hydrograph_title(gage_id, routed, observed))
     axes.set_ylabel("discharge (m$^3$/s)")
     axes.grid(alpha=0.25, lw=0.5)
     axes.legend(loc="upper right", fontsize=8, framealpha=0.9)

@@ -173,7 +173,6 @@ def test_default_cap_is_twelve(tmp_path: Path) -> None:
 def test_a_hydrograph_title_carries_the_gauge_id_and_its_scores(run_dir: Path) -> None:
     # The scores in the title are the ones the reader computes from the eval
     # arrays, so assert against a recomputation rather than a magic number.
-    plot_run.main([str(run_dir)])
     group = zarr.open_group(str(run_dir / "eval" / "predictions.zarr"), mode="r")
     pred = np.asarray(group["predictions"][0], dtype=np.float64)
     obs = np.asarray(group["observations"][0], dtype=np.float64)
@@ -181,6 +180,18 @@ def test_a_hydrograph_title_carries_the_gauge_id_and_its_scores(run_dir: Path) -
         1.0 - np.sum((pred - obs) ** 2) / np.sum((obs - obs.mean()) ** 2)
     )
     assert 0.0 < plot_run.kge(pred, obs) <= 1.0
+
+    title = plot_run.hydrograph_title(GAGE_IDS[0], pred, obs)
+    assert GAGE_IDS[0] in title
+    assert f"NSE {plot_run.nse(pred, obs):.3f}" in title
+    assert f"KGE {plot_run.kge(pred, obs):.3f}" in title
+
+
+def test_a_title_says_n_a_for_a_score_it_cannot_compute() -> None:
+    flat = np.ones(10)
+    title = plot_run.hydrograph_title("01567000", flat, flat)
+    assert "01567000" in title
+    assert "NSE n/a" in title and "KGE n/a" in title
 
 
 def test_scores_are_none_when_nothing_overlaps(run_dir: Path) -> None:
