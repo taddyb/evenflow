@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use crate::cell::{CellStatus, Status};
 use crate::check::{check, CheckOptions};
 use crate::experiment::Experiment;
+use crate::notes::{Note, Notes};
 use crate::summary::Row;
 use crate::Error;
 
@@ -26,6 +27,15 @@ pub struct Origin {
     pub experiment: String,
     pub arm: String,
     pub seed: i64,
+}
+
+/// A run claimed by an experiment cell: who ran it, and where that cell
+/// lives on disk.
+#[derive(Debug)]
+struct Claim {
+    origin: Origin,
+    /// `experiments/<dir>/results/<arm>/seed-<s>/`
+    dir: PathBuf,
 }
 
 /// `check`'s verdict for an experiment, or `None` when `expected:` is empty
@@ -127,6 +137,12 @@ pub struct Profile {
     pub plots: Vec<String>,
     /// Last [`LOG_TAIL_LINES`] lines of `run.log`; `None` when there is none.
     pub log_tail: Option<String>,
+    /// This run's notes, newest first.
+    pub notes: Vec<Note>,
+    /// Why there are none. The notes database is the one thing `view`
+    /// writes, and a repo it cannot write to must still browse: the card
+    /// carries the failure instead of the page returning 500.
+    pub notes_error: Option<String>,
 }
 
 /// The feed: every experiment, then every run in the workspace.
@@ -146,12 +162,18 @@ pub fn profile(root: &Path, workspace: &Path, run_id: &str) -> Result<Option<Pro
     }
     let manifest = crate::read_json(&manifest_path)?;
     let lock = read_lock(workspace);
+    // Opening the notes database creates it if it is not there; a root
+    // that refuses is reported on the card, not on the whole page.
+    let (notes, notes_error) = match Notes::open(root).and_then(|n| n.list(run_id)) {
+        Ok(notes) => (notes, None),
+        Err(e) => (Vec::new(), Some(e.to_string())),
+    };
 
     Ok(Some(Profile {
         run_id: run_id.to_string(),
-        origin: origins(root)
+        origin: claims(root)
             .into_iter()
-            .find_map(|(id, o)| (id == run_id).then_some(o)),
+            .find_map(|(id, c)| (id == run_id).then_some(c.origin)),
         status: string_at(&manifest, "status"),
         workflow: string_at(&manifest, "workflow"),
         ddrs_sha: manifest
@@ -175,6 +197,8 @@ pub fn profile(root: &Path, workspace: &Path, run_id: &str) -> Result<Option<Pro
         config: fs::read_to_string(dir.join("config.yaml")).ok(),
         plots: plots(&dir),
         log_tail: log_tail(&dir),
+        notes,
+        notes_error,
     }))
 }
 
@@ -283,10 +307,10 @@ fn is_template(dir: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// `run_id -> Origin` for every cell of every experiment that recorded one.
+/// `run_id -> Claim` for every cell of every experiment that recorded one.
 /// Best-effort: an experiment that cannot be read attributes nothing rather
 /// than failing the profile page that asked.
-fn origins(root: &Path) -> Vec<(String, Origin)> {
+fn claims(root: &Path) -> Vec<(String, Claim)> {
     let mut out = Vec::new();
     for dir in experiment_dirs(root) {
         let Ok(experiment) = Experiment::load(&dir.join("experiment.yaml")) else {
@@ -302,16 +326,28 @@ fn origins(root: &Path) -> Vec<(String, Origin)> {
             if let Some(id) = status.run_id {
                 out.push((
                     id,
-                    Origin {
-                        experiment: experiment.name.clone(),
-                        arm: cell.arm.clone(),
-                        seed: cell.seed,
+                    Claim {
+                        origin: Origin {
+                            experiment: experiment.name.clone(),
+                            arm: cell.arm.clone(),
+                            seed: cell.seed,
+                        },
+                        dir: cell.dir.clone(),
                     },
                 ));
             }
         }
     }
     out
+}
+
+/// The cell directory that claims `run_id`, if one does — the directory,
+/// not the experiment's `name:`, because the two need not agree and only
+/// the directory exists on disk. `notes export` writes into it.
+pub fn claiming_cell(root: &Path, run_id: &str) -> Option<PathBuf> {
+    claims(root)
+        .into_iter()
+        .find_map(|(id, claim)| (id == run_id).then_some(claim.dir))
 }
 
 /// Every `<workspace>/runs/*/manifest.json`, newest `started_at` first.

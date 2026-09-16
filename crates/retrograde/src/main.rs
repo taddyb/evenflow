@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+use retrograde::notes::{self, Export, NotesOptions};
 use retrograde::view::{serve, ViewOptions};
 use retrograde::{check, sweep, CheckOptions, SweepOptions};
 
@@ -49,6 +50,13 @@ enum Cmd {
         /// Path to experiments/<name>/experiment.yaml.
         experiment: PathBuf,
     },
+    /// Read and export the notes taken on a run. Notes live in
+    /// .retrograde/notes.sqlite (gitignored); `export` is how one reaches
+    /// git.
+    Notes {
+        #[command(subcommand)]
+        cmd: NotesCmd,
+    },
     /// Serve a read-only feed of the experiments and the workspace's runs
     /// on 127.0.0.1, with a profile page per run.
     View {
@@ -61,6 +69,25 @@ enum Cmd {
         workspace: Option<PathBuf>,
         #[arg(long, default_value_t = 8787)]
         port: u16,
+    },
+}
+
+#[derive(Subcommand)]
+enum NotesCmd {
+    /// Print every note on a run, newest first.
+    List {
+        run_id: String,
+        /// Workspace root (default: nearest Cargo.toml with [workspace]).
+        #[arg(long)]
+        root: Option<PathBuf>,
+    },
+    /// Write a run's notes as notes.md into the experiment cell that
+    /// claims it; print the markdown when no cell does.
+    Export {
+        run_id: String,
+        /// Workspace root (default: nearest Cargo.toml with [workspace]).
+        #[arg(long)]
+        root: Option<PathBuf>,
     },
 }
 
@@ -91,6 +118,40 @@ fn main() -> ExitCode {
                     } else {
                         ExitCode::from(1)
                     }
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+        Cmd::Notes { cmd } => {
+            let result = match cmd {
+                NotesCmd::List { run_id, root } => notes::list(&NotesOptions { run_id, root }),
+                NotesCmd::Export { run_id, root } => {
+                    let opts = NotesOptions { run_id, root };
+                    notes::export(&opts).map(|done| match done {
+                        Export::Wrote(path) => format!("wrote {}\n", path.display()),
+                        Export::Rewrote(path) => format!("rewrote {}\n", path.display()),
+                        Export::Unchanged(path) => {
+                            format!("unchanged, already up to date: {}\n", path.display())
+                        }
+                        // Nowhere in git to put it, so it goes to stdout and
+                        // the reason goes to stderr: `> notes.md` still works.
+                        Export::Unclaimed(markdown) => {
+                            eprintln!(
+                                "no experiment cell claims run {} — printing instead of writing",
+                                opts.run_id
+                            );
+                            markdown
+                        }
+                    })
+                }
+            };
+            match result {
+                Ok(text) => {
+                    print!("{text}");
+                    ExitCode::SUCCESS
                 }
                 Err(e) => {
                     eprintln!("error: {e}");

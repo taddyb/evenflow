@@ -9,10 +9,14 @@
 //!
 //! retrograde writes only under `experiments/<name>/results/`, plus
 //! `experiments/<name>/sources.lock`. It never rewrites `experiment.yaml`.
+//! The one other thing it writes is `.retrograde/notes.sqlite`, which is
+//! gitignored; [`notes::export`] is how a note gets from there into
+//! `results/<arm>/seed-<s>/notes.md` and therefore into git.
 
 pub mod cell;
 pub mod check;
 pub mod experiment;
+pub mod notes;
 pub mod runner;
 pub mod summary;
 pub mod view;
@@ -47,6 +51,12 @@ pub enum Error {
         path: PathBuf,
         #[source]
         source: serde_json::Error,
+    },
+    #[error("{path}: {source}")]
+    Sqlite {
+        path: PathBuf,
+        #[source]
+        source: rusqlite::Error,
     },
     #[error("could not run {bin}: {source}")]
     Spawn {
@@ -324,7 +334,7 @@ fn resolve_from_root(path: &Path, root: &Path) -> PathBuf {
     }
 }
 
-fn now() -> String {
+pub(crate) fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 

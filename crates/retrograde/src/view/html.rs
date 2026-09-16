@@ -237,7 +237,7 @@ pub fn profile(profile: &Profile) -> String {
     body.push_str(&config_card(profile));
     body.push_str(&plots_card(profile));
     body.push_str(&log_card(profile));
-    body.push_str(&notes_card());
+    body.push_str(&notes_card(profile));
     page(&profile.run_id, &body)
 }
 
@@ -391,9 +391,44 @@ fn log_card(p: &Profile) -> String {
     }
 }
 
-fn notes_card() -> String {
-    card(
-        "Notes",
-        r#"<p class="text-muted mb-0">notes are not enabled yet</p>"#,
-    )
+/// Existing notes newest first, then the form that adds one. Bodies are
+/// shown in a `<pre>` so a pasted traceback or a table keeps its shape —
+/// escaped like every other value, never rendered as markup.
+fn notes_card(p: &Profile) -> String {
+    let mut inner = String::new();
+
+    if let Some(error) = &p.notes_error {
+        inner.push_str(&format!(
+            r#"<p class="text-danger">notes unavailable: {}</p>"#,
+            escape(error)
+        ));
+    } else if p.notes.is_empty() {
+        inner.push_str(r#"<p class="text-muted">no notes yet</p>"#);
+    }
+
+    for note in &p.notes {
+        inner.push_str(&format!(
+            r#"<div class="mb-3 border-start border-3 ps-3">
+  <div class="small text-muted">{at}</div>
+  <pre class="mb-0"><code>{body}</code></pre>
+</div>
+"#,
+            at = escape(&note.created_at),
+            body = escape(&note.body),
+        ));
+    }
+
+    inner.push_str(&format!(
+        r#"<form method="post" action="/run/{id}/notes">
+  <div class="mb-2">
+    <textarea class="form-control" name="body" rows="3" placeholder="What did this run show?"></textarea>
+  </div>
+  <button class="btn btn-primary btn-sm" type="submit">Add note</button>
+  <span class="ms-2 small text-muted">retrograde notes export {id} puts these in the cell</span>
+</form>
+"#,
+        id = escape(&p.run_id),
+    ));
+
+    card("Notes", &inner)
 }

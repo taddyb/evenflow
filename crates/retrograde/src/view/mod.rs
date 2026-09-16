@@ -1,14 +1,18 @@
 //! `retrograde view`: a local, read-only web view of the experiments tree
 //! and the ddrs workspace.
 //!
-//! The server binds `127.0.0.1` and never writes: every page is rendered
-//! from files already on disk. [`data`] gathers, [`html`] renders, and this
-//! module is the router that maps a URL onto the two of them.
+//! The server binds `127.0.0.1` and reads: every page is rendered from
+//! files already on disk. The one thing it writes is the notes database
+//! (`<root>/.retrograde/notes.sqlite`, see [`crate::notes`]) — nothing
+//! under `experiments/` or the ddrs workspace is ever touched. [`data`]
+//! gathers, [`html`] renders, and this module is the router that maps a
+//! URL onto the two of them.
 //!
 //! ```text
 //! GET /                              feed: experiment cards, then runs
 //! GET /run/<id>                      profile: header, metrics, sources,
 //!                                    config, plots, log, notes
+//! POST /run/<id>/notes               add a note (form-encoded `body`)
 //! GET /run/<id>/log                  the whole run.log, text/plain
 //! GET /run/<id>/plots/<file>.png     one plot image
 //! GET /assets/bootstrap.min.css      the vendored stylesheet
@@ -25,12 +29,14 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use axum::extract::{Path as UrlPath, State};
+use axum::extract::{Form, Path as UrlPath, State};
 use axum::http::{header, StatusCode};
-use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
+use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::routing::{get, post};
 use axum::Router;
+use serde::Deserialize;
 
+use crate::notes::Notes;
 use crate::Error;
 
 /// Bootstrap 5.3.3, vendored under `assets/` (MIT; the license text is
@@ -66,6 +72,7 @@ pub fn app(root: &Path, workspace: &Path) -> Router {
     Router::new()
         .route("/", get(feed))
         .route("/run/{run_id}", get(profile))
+        .route("/run/{run_id}/notes", post(add_note))
         .route("/run/{run_id}/log", get(log))
         .route("/run/{run_id}/plots/{file}", get(plot))
         .route("/assets/bootstrap.min.css", get(bootstrap_css))
@@ -162,6 +169,38 @@ async fn profile(State(paths): State<Arc<Paths>>, UrlPath(run_id): UrlPath<Strin
     match data::profile(&paths.root, &paths.workspace, &run_id) {
         Ok(Some(profile)) => Html(html::profile(&profile)).into_response(),
         Ok(None) => not_found(),
+        Err(e) => failed(e),
+    }
+}
+
+/// The `POST /run/<id>/notes` body: one `<textarea name="body">`.
+#[derive(Debug, Deserialize)]
+struct NoteForm {
+    #[serde(default)]
+    body: String,
+}
+
+/// Add a note to a run, then send the browser back to the profile so a
+/// reload cannot repost it (303, not 307).
+async fn add_note(
+    State(paths): State<Arc<Paths>>,
+    UrlPath(run_id): UrlPath<String>,
+    Form(form): Form<NoteForm>,
+) -> Response {
+    // A note names a run: an id that is not a run in this workspace is a
+    // 404, the same as asking for its profile.
+    if !safe_component(&run_id)
+        || !data::run_dir(&paths.workspace, &run_id)
+            .join("manifest.json")
+            .is_file()
+    {
+        return not_found();
+    }
+    if form.body.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "a note needs a body\n").into_response();
+    }
+    match Notes::open(&paths.root).and_then(|notes| notes.add(&run_id, &form.body)) {
+        Ok(()) => Redirect::to(&format!("/run/{run_id}")).into_response(),
         Err(e) => failed(e),
     }
 }
