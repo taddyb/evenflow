@@ -28,11 +28,15 @@ pub struct CheckOutcome {
 }
 
 /// A report line's verdict, in `check`'s reports and in `reproduce`'s.
+/// `Missing` is only ever reached by `reproduce`, where a metric can be in
+/// one manifest and not the other; `check` compares against a written
+/// expectation, so a metric it cannot find is a `Fail` with a reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Verdict {
     Pass,
     Fail,
     Skip,
+    Missing,
 }
 
 impl Verdict {
@@ -41,6 +45,7 @@ impl Verdict {
             Verdict::Pass => "PASS",
             Verdict::Fail => "FAIL",
             Verdict::Skip => "SKIP",
+            Verdict::Missing => "MISSING",
         }
     }
 }

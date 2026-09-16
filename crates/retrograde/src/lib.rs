@@ -18,6 +18,7 @@ pub mod check;
 pub mod experiment;
 pub mod notes;
 pub mod plot;
+pub mod reproduce;
 pub mod runner;
 pub mod summary;
 pub mod view;
@@ -28,6 +29,7 @@ use std::time::SystemTime;
 
 pub use crate::check::{check, CheckOptions, CheckOutcome};
 pub use crate::plot::{plot, PlotOptions};
+pub use crate::reproduce::{reproduce, ReproduceOptions, ReproduceOutcome};
 
 use crate::cell::{Cell, CellStatus, Status};
 use crate::experiment::Experiment;
@@ -388,7 +390,7 @@ pub(crate) fn write_file(path: &Path, contents: &str) -> Result<(), Error> {
     })
 }
 
-fn copy_file(src: &Path, dest: &Path) -> Result<(), Error> {
+pub(crate) fn copy_file(src: &Path, dest: &Path) -> Result<(), Error> {
     create_parent(dest)?;
     fs::copy(src, dest).map_err(|source| Error::Io {
         path: src.to_path_buf(),
