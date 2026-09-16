@@ -63,6 +63,10 @@ fails.
 | `manifest.json` | copied from the ddrs run directory |
 | `status.json` | `status`, `run_id`, `run_dir`, `log`, `started_at`, `finished_at`, `exit_code`, `error` |
 
+`status.json`'s `run_dir` and `log` are recorded relative to the workspace
+root (`crates/ddrs/.ddrs/runs/<run-id>`), so a committed cell points at the
+same place on any clone; a run outside the root is recorded absolute.
+
 `config.yaml` goes through a YAML round-trip, so it loses comments and
 reformats flow sequences and float literals. It is the arm config plus the two
 seeds and nothing else; a textual diff against `arms/<arm>/ddrs.yaml` shows

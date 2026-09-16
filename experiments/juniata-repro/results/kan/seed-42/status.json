@@ -1,8 +1,8 @@
 {
   "status": "done",
   "run_id": "2026-09-16T01-21-34Z-train-and-test",
-  "run_dir": "/home/tbindas/projects/evenflow/crates/ddrs/.ddrs/runs/2026-09-16T01-21-34Z-train-and-test",
-  "log": "/home/tbindas/projects/evenflow/crates/ddrs/.ddrs/runs/2026-09-16T01-21-34Z-train-and-test/run.log",
+  "run_dir": "crates/ddrs/.ddrs/runs/2026-09-16T01-21-34Z-train-and-test",
+  "log": "crates/ddrs/.ddrs/runs/2026-09-16T01-21-34Z-train-and-test/run.log",
   "started_at": "2026-09-16T01:21:33Z",
   "finished_at": "2026-09-16T01:21:54Z",
   "exit_code": 0,

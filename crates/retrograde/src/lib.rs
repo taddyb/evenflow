@@ -123,7 +123,7 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
     for cell in &cells {
         let mut status = Status::read(&cell.status_path())?;
         if status.status == CellStatus::Running {
-            reconcile_running(cell, &mut status)?;
+            reconcile_running(cell, &mut status, &root)?;
         }
 
         let should_run = if opts.only_failed {
@@ -139,7 +139,7 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
                 lock_pinned = pin_sources_lock(&workspace, &lock_dest)?;
             }
             ran_any = true;
-            status = run_cell(cell, &ddrs)?;
+            status = run_cell(cell, &ddrs, &root)?;
         } else {
             println!("{} skipped, {}", cell.label(), status.status.as_str());
         }
@@ -161,7 +161,9 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
 }
 
 /// Write `running`, run `plan` then `run`, then record what happened.
-fn run_cell(cell: &Cell, ddrs: &Ddrs) -> Result<Status, Error> {
+/// `run_dir` and `log` are recorded relative to `root` so a committed
+/// `status.json` means the same thing on any clone.
+fn run_cell(cell: &Cell, ddrs: &Ddrs, root: &Path) -> Result<Status, Error> {
     println!("{} running", cell.label());
     write_file(&cell.config_path(), &cell::derive_config(&cell.arm_config, cell.seed)?)?;
 
@@ -200,12 +202,12 @@ fn run_cell(cell: &Cell, ddrs: &Ddrs) -> Result<Status, Error> {
         if status.run_id.is_none() {
             status.run_id = dir.file_name().map(|n| n.to_string_lossy().into_owned());
         }
-        status.log = Some(dir.join("run.log"));
+        status.log = Some(root_relative(&dir.join("run.log"), root));
     }
 
     let done = outcome.ok() && manifest_ok;
     status.status = if done { CellStatus::Done } else { CellStatus::Failed };
-    status.run_dir = run_dir;
+    status.run_dir = run_dir.map(|d| root_relative(&d, root));
     status.finished_at = Some(now());
     status.exit_code = outcome.code;
     status.error = if done { None } else { outcome.last_stderr };
@@ -217,11 +219,11 @@ fn run_cell(cell: &Cell, ddrs: &Ddrs) -> Result<Status, Error> {
 
 /// A crash (or Ctrl-C) leaves `running` behind. If the run it points at
 /// finished successfully, adopt it; otherwise the cell failed.
-fn reconcile_running(cell: &Cell, status: &mut Status) -> Result<(), Error> {
+fn reconcile_running(cell: &Cell, status: &mut Status, root: &Path) -> Result<(), Error> {
     let manifest = status
         .run_dir
         .as_ref()
-        .map(|d| d.join("manifest.json"))
+        .map(|d| resolve_from_root(d, root).join("manifest.json"))
         .filter(|m| m.is_file())
         .map(|m| read_json(&m).map(|v| (m, v)))
         .transpose()?
@@ -298,6 +300,27 @@ fn find_workspace_root(start: &Path) -> Result<PathBuf, Error> {
         "no Cargo.toml with a [workspace] table above {} — pass --root",
         start.display()
     )))
+}
+
+/// A path recorded in `status.json`. Paths under the workspace root are
+/// stored relative to it (`crates/ddrs/.ddrs/runs/<id>`) so that a committed
+/// `results/` tree is portable; a path outside the root — a `--workspace`
+/// somewhere else — stays absolute, because nothing else would name it.
+fn root_relative(path: &Path, root: &Path) -> PathBuf {
+    match path.strip_prefix(root) {
+        Ok(rel) => rel.to_path_buf(),
+        Err(_) => path.to_path_buf(),
+    }
+}
+
+/// The inverse of [`root_relative`]: read a recorded path back. Absolute
+/// paths are used as they are, so both forms work.
+fn resolve_from_root(path: &Path, root: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    }
 }
 
 fn now() -> String {

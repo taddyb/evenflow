@@ -212,6 +212,21 @@ fn two_arms_two_seeds_produce_four_done_cells_manifests_and_a_sorted_summary() {
             f.status(arm, seed)["run_id"].is_string(),
             "{arm}/seed-{seed} run_id recorded",
         );
+
+        // run_dir and log are recorded relative to the workspace root, so a
+        // committed results/ tree means the same thing on any clone.
+        let st = f.status(arm, seed);
+        let run_id = st["run_id"].as_str().unwrap();
+        assert_eq!(
+            st["run_dir"].as_str(),
+            Some(format!("crates/ddrs/.ddrs/runs/{run_id}").as_str()),
+            "{arm}/seed-{seed} run_dir is root-relative",
+        );
+        assert_eq!(
+            st["log"].as_str(),
+            Some(format!("crates/ddrs/.ddrs/runs/{run_id}/run.log").as_str()),
+            "{arm}/seed-{seed} log is root-relative",
+        );
     }
 
     let csv = fs::read_to_string(f.exp_dir.join("results/summary.csv")).unwrap();
@@ -295,6 +310,23 @@ fn a_done_cell_is_not_rerun_even_without_only_failed() {
 
 #[test]
 fn a_running_cell_with_a_finished_manifest_is_reconciled_to_done() {
+    // The absolute spelling: a run outside the workspace root is recorded
+    // that way, and is still read back correctly.
+    reconcile_running_cell(&|run_dir, _root| run_dir.to_str().unwrap().to_string());
+}
+
+/// The spelling retrograde writes today. Reading it back has to resolve it
+/// against the workspace root, or the manifest is never found.
+#[test]
+fn a_running_cell_with_a_relative_run_dir_is_reconciled_to_done() {
+    reconcile_running_cell(&|run_dir, root| {
+        run_dir.strip_prefix(root).unwrap().to_str().unwrap().to_string()
+    });
+}
+
+/// Body of the two tests above: `run_dir_field` renders the `run_dir` the
+/// interrupted sweep is pretended to have left behind.
+fn reconcile_running_cell(run_dir_field: &dyn Fn(&Path, &Path) -> String) {
     let f = fixture(&[("kan", &[7])]);
 
     // A crash (or Ctrl-C) left `running` behind, but the run itself finished.
@@ -328,7 +360,7 @@ fn a_running_cell_with_a_finished_manifest_is_reconciled_to_done() {
         serde_json::json!({
             "status": "running",
             "run_id": run_id,
-            "run_dir": run_dir.to_str().unwrap(),
+            "run_dir": run_dir_field(&run_dir, &f.root),
             "log": null,
             "started_at": "2026-09-15T00:00:00Z",
             "finished_at": null,

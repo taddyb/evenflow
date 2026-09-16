@@ -30,6 +30,8 @@ impl CellStatus {
 
 /// `results/<arm>/seed-<s>/status.json`. Every field but `status` is
 /// nullable; a hand-written or partial file reads back with the rest null.
+/// `run_dir` and `log` are relative to the workspace root (they are only
+/// absolute when the run lives outside it), so `results/` stays portable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Status {
     pub status: CellStatus,
