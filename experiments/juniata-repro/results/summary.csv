@@ -1,0 +1,2 @@
+arm,seed,status,run_id,median_nse_finite,median_kge_finite,mean_nse_finite,n_gauges_finite_nse,n_gauges_total,ddrs_sha
+kan,42,done,2026-09-16T01-21-34Z-train-and-test,0.7903451323509216,0.8809698224067688,0.7903451323509216,1,1,05ab47fa03f6584afad6f6310fec1c5680e2d04c

@@ -1,0 +1,16 @@
+name: juniata-repro
+question: >
+  Does the committed Juniata bundle reproduce its documented result
+  (routed NSE 0.790 / KGE 0.881, summed-Q' baseline NSE 0.695) when run
+  through evenflow's experiment layer instead of by hand?
+arms:
+  - name: kan
+    config: arms/kan/ddrs.yaml
+    seeds: [42]
+expected:
+  kan:
+    median_nse_finite: 0.790
+    median_kge_finite: 0.881
+    tolerance: 0.04
+result: ""
+conclusion: ""
