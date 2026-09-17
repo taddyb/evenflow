@@ -1,0 +1,124 @@
+{
+  "run_id": "2026-09-16T01-21-34Z-train-and-test",
+  "ddrs_version": "0.1.0",
+  "git": {
+    "sha": "05ab47fa03f6584afad6f6310fec1c5680e2d04c",
+    "dirty": false,
+    "branch": "HEAD"
+  },
+  "workflow": "train-and-test",
+  "config_path": "/home/tbindas/projects/evenflow/crates/ddrs/.ddrs/runs/2026-09-16T01-21-34Z-train-and-test/config.yaml",
+  "started_at": "2026-09-16T01:21:34Z",
+  "finished_at": "2026-09-16T01:21:53Z",
+  "status": "ok",
+  "exit_reason": null,
+  "system": {
+    "ddrs_version": "",
+    "probed_at": "",
+    "gpu": "",
+    "cuda_runtime": "",
+    "driver": "",
+    "sm": "",
+    "free_gpu_gb_at_probe": 0.0,
+    "smoke_test": null
+  },
+  "sources": {
+    "attributes": {
+      "path": "examples/juniata/data/juniata_attributes.nc",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 32863,
+      "fp": "blake3:1c7a3b7768739dbed4c91af804166b311b1efe022538914b6cecb8fed9c4f5af"
+    },
+    "conus_adjacency": {
+      "path": "examples/juniata/data/juniata_conus_adjacency.zarr",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 102,
+      "fp": "blake3:27691311575878625f462798bd920dde745fc59c9b9fe015f84893d7a7308bd3"
+    },
+    "gages": {
+      "path": "examples/juniata/data/juniata_gage.csv",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 260,
+      "fp": "blake3:ff797e3758cbfb96e3616cca5e136c0f751815d94ba17e93ec9dca5336a7df08"
+    },
+    "gages_adjacency": {
+      "path": "examples/juniata/data/juniata_gages_adjacency.zarr",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 34,
+      "fp": "blake3:a8ce9287d6052459e6182e23684c64db0ac68eb89d9faf2f97426fe7541c0a81"
+    },
+    "observations": {
+      "path": "examples/juniata/data/juniata_obs.ic",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 102,
+      "fp": "blake3:b30974f8d1140506e419095f758f2e9ac0a22a6a4535e39d69d01eea6383c5b7"
+    },
+    "streamflow": {
+      "path": "examples/juniata/data/juniata_qprime.ic",
+      "mtime": "2026-09-14T22:47:00Z",
+      "size": 102,
+      "fp": "blake3:b30974f8d1140506e419095f758f2e9ac0a22a6a4535e39d69d01eea6383c5b7"
+    }
+  },
+  "resolved_adjacency": {
+    "conus": "examples/juniata/data/juniata_conus_adjacency.zarr",
+    "gages": "examples/juniata/data/juniata_gages_adjacency.zarr"
+  },
+  "source_lock": {
+    "lockfile": "/home/tbindas/projects/evenflow/crates/ddrs/.ddrs/sources.lock",
+    "matched": true,
+    "drift": []
+  },
+  "outputs": {
+    "checkpoints": [
+      "checkpoints/epoch_10_mb_0",
+      "checkpoints/epoch_11_mb_0",
+      "checkpoints/epoch_12_mb_0",
+      "checkpoints/epoch_13_mb_0",
+      "checkpoints/epoch_14_mb_0",
+      "checkpoints/epoch_15_mb_0",
+      "checkpoints/epoch_16_mb_0",
+      "checkpoints/epoch_17_mb_0",
+      "checkpoints/epoch_18_mb_0",
+      "checkpoints/epoch_19_mb_0",
+      "checkpoints/epoch_1_mb_0",
+      "checkpoints/epoch_20_mb_0",
+      "checkpoints/epoch_21_mb_0",
+      "checkpoints/epoch_22_mb_0",
+      "checkpoints/epoch_23_mb_0",
+      "checkpoints/epoch_24_mb_0",
+      "checkpoints/epoch_25_mb_0",
+      "checkpoints/epoch_26_mb_0",
+      "checkpoints/epoch_27_mb_0",
+      "checkpoints/epoch_28_mb_0",
+      "checkpoints/epoch_29_mb_0",
+      "checkpoints/epoch_2_mb_0",
+      "checkpoints/epoch_30_mb_0",
+      "checkpoints/epoch_3_mb_0",
+      "checkpoints/epoch_4_mb_0",
+      "checkpoints/epoch_5_mb_0",
+      "checkpoints/epoch_6_mb_0",
+      "checkpoints/epoch_7_mb_0",
+      "checkpoints/epoch_8_mb_0",
+      "checkpoints/epoch_9_mb_0"
+    ],
+    "plot": null,
+    "eval_zarr": "eval/predictions.zarr",
+    "baseline_predictions": "baseline/predictions.f32",
+    "baseline_observations": "baseline/observations.f32",
+    "baseline_manifest": "baseline/manifest.json",
+    "run_log": "run.log"
+  },
+  "metrics": {
+    "epochs_completed": 30,
+    "final_mini_batch": 0,
+    "phase1_seconds": 8.064604759216309,
+    "phase2_seconds": 11.282686233520508,
+    "n_gauges_finite_nse": 1,
+    "n_gauges_total": 1,
+    "mean_nse_finite": 0.7903451323509216,
+    "median_nse_finite": 0.7903451323509216,
+    "median_kge_finite": 0.8809698224067688
+  },
+  "max_mini_batches": null
+}

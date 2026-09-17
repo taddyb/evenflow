@@ -1,0 +1,3 @@
+# uv materializes the environment from uv.lock; it is not source.
+.venv/
+.pytest_cache/
