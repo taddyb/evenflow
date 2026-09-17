@@ -1,0 +1,12 @@
+name: <experiment-name>
+question: >
+  One or two sentences. What would change our mind.
+arms:
+  - name: <arm>
+    config: arms/<arm>/ddrs.yaml
+    sources: <source group in crates/ddrs/config/sources/>
+    seed: 42
+expected: {}          # filled from results/<arm>/manifest.json when committed
+                      # <arm>: { median_nse: 0.0, median_kge: 0.0, tolerance: 0.005 }
+result: ""            # written by a person
+conclusion: ""        # written by a person

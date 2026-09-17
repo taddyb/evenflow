@@ -1,0 +1,6 @@
+[package]
+name = "retrograde"
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Reserved: the evenflow operator. Empty until its own spec lands."
