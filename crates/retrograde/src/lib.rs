@@ -132,7 +132,6 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
     let cells = cell::cells(&exp_dir, &experiment)?;
 
     let lock_dest = exp_dir.join("sources.lock");
-    let mut lock_pinned = false;
     let mut ran_any = false;
     let mut rows = Vec::new();
 
@@ -149,11 +148,6 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
         };
 
         if should_run {
-            // The lock the sweep runs against is pinned beside experiment.yaml
-            // before the first cell.
-            if !lock_pinned {
-                lock_pinned = pin_sources_lock(&workspace, &lock_dest)?;
-            }
             ran_any = true;
             status = run_cell(cell, &ddrs, &root)?;
         } else {
@@ -163,9 +157,13 @@ pub fn sweep(opts: &SweepOptions) -> Result<SweepOutcome, Error> {
         rows.push(row_for(cell, &status)?);
     }
 
-    // A cold workspace has no sources.lock until the first `ddrs plan`;
-    // pin it once the sweep has made one rather than leaving nothing pinned.
-    if ran_any && !lock_pinned {
+    // Pin the lock AFTER the cells run. Every cell begins with `ddrs plan`,
+    // which rewrites `<workspace>/sources.lock`, so the file that describes
+    // what the arms actually read does not exist until they have run.
+    // Copying it beforehand commits the PREVIOUS sweep's pins, which makes
+    // the record claim data the arms never saw. A sweep that ran nothing
+    // leaves the committed lock alone: it is still the original record.
+    if ran_any {
         pin_sources_lock(&workspace, &lock_dest)?;
     }
 

@@ -415,3 +415,41 @@ fn a_missing_ddrs_binary_names_the_build_command() {
     .to_string();
     assert!(err.contains("cargo build --release -p ddrs --bin ddrs"), "got: {err}");
 }
+
+/// The lock a sweep commits must be the one ddrs wrote during THIS sweep's
+/// `plan`, not whatever the workspace happened to hold beforehand. Copying it
+/// before the first cell captures the previous run's pins, so the committed
+/// record would claim the arms ran against data they did not.
+#[test]
+fn the_committed_lock_is_the_one_this_sweep_planned_against() {
+    let f = fixture(&[("kan", &[1])]);
+    fs::create_dir_all(&f.workspace).unwrap();
+    fs::write(f.workspace.join("sources.lock"), "STALE-from-a-previous-plan\n").unwrap();
+
+    let out = sweep(&f.opts()).unwrap();
+    assert!(out.all_done);
+
+    let committed = fs::read_to_string(f.exp_dir.join("sources.lock")).unwrap();
+    assert_eq!(
+        committed, "sources-lock-contents\n",
+        "the committed lock must be what plan wrote, not the stale one",
+    );
+}
+
+/// A sweep that runs nothing leaves the committed lock alone: the record of
+/// what the original arms ran against is not to be overwritten by a no-op.
+#[test]
+fn a_sweep_that_runs_nothing_leaves_the_committed_lock_alone() {
+    let f = fixture(&[("kan", &[1])]);
+    sweep(&f.opts()).unwrap();
+    fs::write(f.exp_dir.join("sources.lock"), "ORIGINAL\n").unwrap();
+    fs::write(f.workspace.join("sources.lock"), "DIFFERENT\n").unwrap();
+
+    sweep(&f.opts()).unwrap();
+
+    assert_eq!(
+        fs::read_to_string(f.exp_dir.join("sources.lock")).unwrap(),
+        "ORIGINAL\n",
+        "a no-op sweep must not rewrite the record's lock",
+    );
+}
