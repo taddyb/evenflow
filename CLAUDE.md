@@ -8,7 +8,8 @@ working in it:
   live at `crates/ddrs/.claude/skills/` and are listed with a `crates/ddrs:`
   prefix. "The repo's skills" in ddrs documentation means that directory.
 - `crates/corduroy/README.md` — precipitation mapping.
-- `crates/retrograde/src/lib.rs` — reserved, empty.
+- `experiments/README.md` — `crates/retrograde`, the experiment operator
+  (`sweep`, `check`).
 
 Workspace rules:
 
@@ -16,6 +17,12 @@ Workspace rules:
   configs, pins, `AGENTS.md` data procedure, small results. Never data,
   checkpoints, or stores. Runs go through `crates/ddrs/` with an explicit
   `--workspace crates/ddrs/.ddrs`.
+
+- `crates/retrograde` owns the two experiment verbs. `retrograde sweep` runs
+  an experiment's arms x seeds through the ddrs CLI; `retrograde check`
+  compares the results against the experiment's `expected:` block. They write
+  only under `experiments/<name>/results/` and that experiment's
+  `sources.lock`. Never inside a submodule, a crate, or `target/`.
 
 - `[patch.crates-io]` and `[profile.release]` live only in the root
   `Cargo.toml`. Never add them to a member crate; cargo ignores them there.
