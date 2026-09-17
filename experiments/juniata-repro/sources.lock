@@ -1,6 +1,6 @@
 {
   "ddrs_version": "0.1.0",
-  "created_at": "2026-09-16T01:21:34Z",
+  "created_at": "2026-09-17T13:21:49Z",
   "sources": {
     "attributes": {
       "path": "examples/juniata/data/juniata_attributes.nc",
@@ -12,7 +12,7 @@
       "path": "examples/juniata/data/juniata_conus_adjacency.zarr",
       "mtime": "2026-09-14T22:47:00Z",
       "size": 102,
-      "fp": "blake3:27691311575878625f462798bd920dde745fc59c9b9fe015f84893d7a7308bd3"
+      "fp": "blake3:0a1b1bc2a80423a6f2456407bf01a1599184a0228bbaa78ca4ffe09206e5d030"
     },
     "gages": {
       "path": "examples/juniata/data/juniata_gage.csv",
@@ -24,19 +24,21 @@
       "path": "examples/juniata/data/juniata_gages_adjacency.zarr",
       "mtime": "2026-09-14T22:47:00Z",
       "size": 34,
-      "fp": "blake3:a8ce9287d6052459e6182e23684c64db0ac68eb89d9faf2f97426fe7541c0a81"
+      "fp": "blake3:17041dbe8490f1311d024a1b53dd856956a40a0f1247353a77a6e15d7bc70caf"
     },
     "observations": {
       "path": "examples/juniata/data/juniata_obs.ic",
       "mtime": "2026-09-14T22:47:00Z",
       "size": 102,
-      "fp": "blake3:b30974f8d1140506e419095f758f2e9ac0a22a6a4535e39d69d01eea6383c5b7"
+      "fp": "icechunk:BPY4SW34FJGXWC3T806G",
+      "snapshot": "BPY4SW34FJGXWC3T806G"
     },
     "streamflow": {
       "path": "examples/juniata/data/juniata_qprime.ic",
       "mtime": "2026-09-14T22:47:00Z",
       "size": 102,
-      "fp": "blake3:b30974f8d1140506e419095f758f2e9ac0a22a6a4535e39d69d01eea6383c5b7"
+      "fp": "icechunk:E0M3W6W1881H868V2KRG",
+      "snapshot": "E0M3W6W1881H868V2KRG"
     }
   }
 }
