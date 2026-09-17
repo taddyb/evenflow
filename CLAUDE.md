@@ -9,7 +9,7 @@ working in it:
   prefix. "The repo's skills" in ddrs documentation means that directory.
 - `crates/corduroy/README.md` — precipitation mapping.
 - `experiments/README.md` — `crates/retrograde`, the experiment operator
-  (`sweep`, `check`).
+  (`sweep`, `check`, `view`, `plot`, `notes`).
 
 Workspace rules:
 
@@ -18,11 +18,23 @@ Workspace rules:
   checkpoints, or stores. Runs go through `crates/ddrs/` with an explicit
   `--workspace crates/ddrs/.ddrs`.
 
-- `crates/retrograde` owns the two experiment verbs. `retrograde sweep` runs
-  an experiment's arms x seeds through the ddrs CLI; `retrograde check`
-  compares the results against the experiment's `expected:` block. They write
-  only under `experiments/<name>/results/` and that experiment's
-  `sources.lock`. Never inside a submodule, a crate, or `target/`.
+- `crates/retrograde` owns the experiment verbs. `retrograde sweep` runs an
+  experiment's arms x seeds through the ddrs CLI; `retrograde check` compares
+  the results against the experiment's `expected:` block. They write only
+  under `experiments/<name>/results/` and that experiment's `sources.lock`.
+  Never inside a submodule, a crate, or `target/`.
+
+- Three more verbs read a run rather than produce one. `retrograde view`
+  serves the experiment feed and a per-run profile page; it binds
+  `127.0.0.1` only, never another interface, and Bootstrap is vendored under
+  `crates/retrograde/assets/` so no page fetches a CDN. `retrograde plot
+  <run-id>` writes PNGs into `<run-dir>/plots/` through the uv project at
+  `crates/retrograde/py/`, and writes nowhere else. `retrograde notes` keeps
+  per-run notes in `.retrograde/notes.sqlite` at the workspace root, which is
+  gitignored and stays local: `retrograde notes export <run-id>` is the only
+  thing that puts a note into git, as `notes.md` in the cell that claims the
+  run. A note typed while browsing is not a research note; export the ones
+  that are.
 
 - `[patch.crates-io]` and `[profile.release]` live only in the root
   `Cargo.toml`. Never add them to a member crate; cargo ignores them there.

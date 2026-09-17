@@ -1,0 +1,16 @@
+[project]
+name = "retrograde-plot"
+version = "0.0.0"
+description = "Plot a ddrs run's hydrographs and metrics for `retrograde view`."
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "zarr>=3",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]

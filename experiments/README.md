@@ -19,7 +19,7 @@ experiments/<name>/
 
 ## Running one
 
-`crates/retrograde` owns the two verbs. Build both binaries once, then sweep
+`crates/retrograde` owns the verbs. Build both binaries once, then sweep
 and check:
 
 ```bash
@@ -80,6 +80,42 @@ arm,seed,status,run_id,median_nse_finite,median_kge_finite,mean_nse_finite,n_gau
 ```
 
 Metric columns are empty for a cell that is not `done`.
+
+## View, plot, notes
+
+Three more verbs read what a sweep produced. They write nothing under
+`experiments/` except an explicit `notes export`.
+
+```bash
+target/release/retrograde view
+target/release/retrograde plot <run-id>
+target/release/retrograde notes list <run-id>
+target/release/retrograde notes export <run-id>
+```
+
+`view` serves a local page on `127.0.0.1:8787` (`--port` to change it). The
+feed is one card per experiment, with its question, a `CHECK PASS` /
+`CHECK FAIL` badge, and a row per cell, above a table of every run in the
+ddrs workspace. `/run/<run-id>` is that run's profile: metrics, the source
+fingerprints and whether they have drifted since, the `config.yaml` snapshot,
+the plots, the last 200 lines of `run.log`, and the notes. It binds localhost
+only and reads files already on disk. Bootstrap is vendored, so the pages
+work offline.
+
+`plot <run-id>` fills the Plots card. It hands the run directory to the uv
+project at `crates/retrograde/py/`, which writes
+`<run-dir>/plots/hydrograph-<gauge>.png` (observed, the summed-Q' baseline,
+and the routed prediction, titled with that gauge's routed NSE and KGE) and
+`<run-dir>/plots/metrics.png` (median NSE and KGE, routed against baseline).
+The numbers come from the manifests `check` already reads, so a chart cannot
+disagree with a check. It needs `uv` on PATH; `--max-gauges` defaults to 12.
+
+Notes are typed into the form at the bottom of a profile page and stored in
+`.retrograde/notes.sqlite` at the workspace root, which is gitignored. That
+store is local until you promote it: `notes export <run-id>` writes
+`results/<arm>/seed-<s>/notes.md` in the cell that claims the run, and that
+file is what gets committed. A run no cell claims prints the markdown instead
+of writing it.
 
 ## Rules
 

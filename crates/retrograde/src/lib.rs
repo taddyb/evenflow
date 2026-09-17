@@ -9,18 +9,25 @@
 //!
 //! retrograde writes only under `experiments/<name>/results/`, plus
 //! `experiments/<name>/sources.lock`. It never rewrites `experiment.yaml`.
+//! The one other thing it writes is `.retrograde/notes.sqlite`, which is
+//! gitignored; [`notes::export`] is how a note gets from there into
+//! `results/<arm>/seed-<s>/notes.md` and therefore into git.
 
 pub mod cell;
 pub mod check;
 pub mod experiment;
+pub mod notes;
+pub mod plot;
 pub mod runner;
 pub mod summary;
+pub mod view;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 pub use crate::check::{check, CheckOptions, CheckOutcome};
+pub use crate::plot::{plot, PlotOptions};
 
 use crate::cell::{Cell, CellStatus, Status};
 use crate::experiment::Experiment;
@@ -46,6 +53,12 @@ pub enum Error {
         path: PathBuf,
         #[source]
         source: serde_json::Error,
+    },
+    #[error("{path}: {source}")]
+    Sqlite {
+        path: PathBuf,
+        #[source]
+        source: rusqlite::Error,
     },
     #[error("could not run {bin}: {source}")]
     Spawn {
@@ -282,7 +295,7 @@ fn pin_sources_lock(workspace: &Path, dest: &Path) -> Result<bool, Error> {
 }
 
 /// The nearest ancestor holding a `Cargo.toml` with a `[workspace]` table.
-fn find_workspace_root(start: &Path) -> Result<PathBuf, Error> {
+pub(crate) fn find_workspace_root(start: &Path) -> Result<PathBuf, Error> {
     for dir in start.ancestors() {
         let manifest = dir.join("Cargo.toml");
         if !manifest.is_file() {
@@ -323,7 +336,7 @@ fn resolve_from_root(path: &Path, root: &Path) -> PathBuf {
     }
 }
 
-fn now() -> String {
+pub(crate) fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 

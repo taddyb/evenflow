@@ -9,7 +9,7 @@ one autograd tape.
 | `crates/ddrs` | Distributed differentiable Muskingum-Cunge routing in Rust (BURN), with the `ddrs` CLI, KAN parameter head, training, evaluation, and paper studies. Git submodule of `taddyb/ddrs`. | `crates/ddrs/README.md`, `crates/ddrs/CLAUDE.md` |
 | `crates/ddrs/ddrs-py` | PyO3 bindings for ddrs: read-only CPU inference and parameter export. | `crates/ddrs/ddrs-py/README.md` |
 | `crates/corduroy` | Adaptive-mesh precipitation mapping from ERA5 Zarr v3 on GCS, with a small overland-flow and channel model. Git submodule of `DeepGroundwater/corduroy`. | `crates/corduroy/README.md` |
-| `crates/retrograde` | The evenflow experiment operator. `retrograde sweep` runs an experiment's arms x seeds through ddrs; `retrograde check` compares the results against what the experiment claims. | `experiments/README.md` |
+| `crates/retrograde` | The evenflow experiment operator. `sweep` runs an experiment's arms x seeds through ddrs; `check` compares the results against what the experiment claims; `view` serves a local page per experiment and run; `plot` draws a run's hydrographs and metrics; `notes` keeps notes on a run. | `experiments/README.md` |
 
 ## Build
 
@@ -32,13 +32,16 @@ Python bindings are per-crate `uv` projects; nothing is shared at the root.
 data pins, the data procedure in `AGENTS.md`, and small committed results.
 See `experiments/README.md`. Data never lives in git.
 
-Run one with `crates/retrograde`. Build the two binaries, sweep, then check:
+Run one with `crates/retrograde`. Build the two binaries, then sweep, check,
+plot, and view:
 
 ```bash
 cargo build --release -p ddrs --bin ddrs
 cargo build --release -p retrograde
 target/release/retrograde sweep experiments/juniata-repro/experiment.yaml --backend cpu
 target/release/retrograde check experiments/juniata-repro/experiment.yaml
+target/release/retrograde plot <run-id>
+target/release/retrograde view
 ```
 
 `sweep` runs every arm x seed through `ddrs plan` and `ddrs run --workflow
@@ -49,6 +52,14 @@ costs nothing. `check` compares those results against the experiment's
 `CHECK FAIL`; it reads only committed files. `experiments/juniata-repro/` is
 a worked example: the Juniata bundle at routed NSE 0.790 / KGE 0.881, 21 s on
 CPU.
+
+`plot` writes a run's hydrographs and a routed-against-baseline metrics chart
+into `<run-dir>/plots/`, using the uv project at `crates/retrograde/py/`.
+`view` then serves those plots, the metrics, the source drift, the config
+snapshot, the log tail, and a notes form on `127.0.0.1:8787`. Notes live in a
+gitignored `.retrograde/notes.sqlite` until `retrograde notes export <run-id>`
+writes them into the experiment cell that claims the run. See
+`experiments/README.md`.
 
 ## Submodules
 

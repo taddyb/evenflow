@@ -1,9 +1,10 @@
 //! The `experiment.yaml` schema retrograde reads (v1).
 //!
-//! Only the keys retrograde acts on are modelled. Everything else in the
-//! file (`question`, `result`, `conclusion`, and anything a person adds) is
-//! ignored on read and never rewritten: retrograde only ever writes under
-//! `results/`, plus `sources.lock`.
+//! Only the keys retrograde acts on are modelled, plus `question`, which
+//! `view` displays. Everything else in the file (`result`, `conclusion`,
+//! and anything a person adds) is ignored on read. Nothing here is ever
+//! rewritten: retrograde only ever writes under `results/`, plus
+//! `sources.lock`.
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +15,9 @@ use crate::Error;
 #[derive(Debug, Clone, Deserialize)]
 pub struct Experiment {
     pub name: String,
+    /// `question:` — prose, shown by `view`. Read but never rewritten.
+    #[serde(default)]
+    pub question: String,
     #[serde(default)]
     pub arms: Vec<Arm>,
     /// `expected:` — an arm name per key, each mapping metric names to the
