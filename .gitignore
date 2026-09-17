@@ -1,5 +1,8 @@
 # Workspace-level. Each crate keeps its own .gitignore for crate-local rules.
 /target/
+# `retrograde` run notes: a local SQLite store. `retrograde notes export`
+# is how a note reaches git, as results/<arm>/seed-<s>/notes.md.
+/.retrograde/
 .cargo/
 .claude/settings.local.json
 .claude/worktrees/

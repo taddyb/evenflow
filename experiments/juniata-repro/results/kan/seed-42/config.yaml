@@ -1,0 +1,74 @@
+mode: training
+workflow: train-and-test
+geodataset: merit
+device: 0
+seed: 42
+np_seed: 42
+data_sources:
+  attributes: examples/juniata/data/juniata_attributes.nc
+  conus_adjacency: examples/juniata/data/juniata_conus_adjacency.zarr
+  gages_adjacency: examples/juniata/data/juniata_gages_adjacency.zarr
+  streamflow: examples/juniata/data/juniata_qprime.ic
+  observations: examples/juniata/data/juniata_obs.ic
+  gages: examples/juniata/data/juniata_gage.csv
+experiment:
+  batch_size: 1
+  start_time: 1981/10/01
+  end_time: 1995/09/30
+  epochs: 30
+  rho: 90
+  shuffle: true
+  warmup: 5
+  learning_rate:
+    1: 0.001
+    15: 0.0005
+  grad_clip_max_norm: 1.0
+kan_head:
+  hidden_size: 21
+  num_hidden_layers: 2
+  grid: 50
+  k: 2
+  input_var_names:
+  - SoilGrids1km_clay
+  - aridity
+  - meanelevation
+  - meanP
+  - NDVI
+  - meanslope
+  - log10_uparea
+  - SoilGrids1km_sand
+  - ETPOT_Hargr
+  - Porosity
+  learnable_parameters:
+  - n
+  - q_spatial
+  - p_spatial
+params:
+  parameter_ranges:
+    n:
+    - 0.015
+    - 0.25
+    q_spatial:
+    - 0.0
+    - 1.0
+    p_spatial:
+    - 1.0
+    - 200.0
+  attribute_minimums:
+    discharge: 0.0001
+    slope: 0.001
+    velocity: 0.01
+    depth: 0.01
+    bottom_width: 0.01
+  defaults:
+    p_spatial: 21.0
+  log_space_parameters:
+  - p_spatial
+  tau: 9
+  sparse_solver: cpu
+  use_cuda_graphs: false
+testing:
+  start_time: 1995/10/01
+  end_time: 2010/09/30
+  batch_size: 15
+  rho: null
