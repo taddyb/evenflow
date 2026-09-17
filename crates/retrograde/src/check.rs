@@ -27,19 +27,25 @@ pub struct CheckOutcome {
     pub report: String,
 }
 
+/// A report line's verdict, in `check`'s reports and in `reproduce`'s.
+/// `Missing` is only ever reached by `reproduce`, where a metric can be in
+/// one manifest and not the other; `check` compares against a written
+/// expectation, so a metric it cannot find is a `Fail` with a reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Verdict {
+pub(crate) enum Verdict {
     Pass,
     Fail,
     Skip,
+    Missing,
 }
 
 impl Verdict {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Verdict::Pass => "PASS",
             Verdict::Fail => "FAIL",
             Verdict::Skip => "SKIP",
+            Verdict::Missing => "MISSING",
         }
     }
 }
@@ -93,7 +99,7 @@ fn dash() -> String {
 /// Shortest faithful rendering at six decimals: `0.79`, `0.0012`, `3211`.
 /// Six decimals is far below any tolerance worth writing down, and it keeps
 /// float noise (`0.0011999999999999789`) out of the report.
-fn num(v: f64) -> String {
+pub(crate) fn num(v: f64) -> String {
     let s = format!("{v:.6}");
     let trimmed = s.trim_end_matches('0').trim_end_matches('.');
     if trimmed.is_empty() || trimmed == "-" {
@@ -247,38 +253,61 @@ fn compare(
     }
 }
 
-/// Columns padded to their widest cell, verdict last, reason in parentheses
-/// after it. The verdict line is the last line of the report.
-fn render(lines: &[Line], passed: bool) -> String {
-    let rows: Vec<[String; 7]> = lines.iter().map(|l| l.cells()).collect();
-    let mut width = [0usize; 7];
-    for row in &rows {
-        for (w, field) in width.iter_mut().zip(row) {
+/// One rendered row: its columns, and an optional reason that follows the
+/// last of them in parentheses. `reproduce` renders its comparison through
+/// [`render_rows`] too, so both verbs' tables line their columns up the
+/// same way and there is one padding routine in the crate.
+#[derive(Debug, Clone)]
+pub(crate) struct TableRow {
+    pub cells: Vec<String>,
+    pub reason: Option<String>,
+}
+
+/// Columns padded to their widest cell, reason in parentheses after the
+/// last column. The last column is not padded to (nothing follows it but a
+/// reason, and a reason is never padded to).
+pub(crate) fn render_rows(rows: &[TableRow]) -> String {
+    let columns = rows.iter().map(|r| r.cells.len()).max().unwrap_or(0);
+    let mut width = vec![0usize; columns];
+    for row in rows {
+        for (w, field) in width.iter_mut().zip(&row.cells) {
             *w = (*w).max(field.chars().count());
         }
     }
 
     let mut out = String::new();
-    for (row, line) in rows.iter().zip(lines) {
+    for row in rows {
         let mut rendered = String::new();
-        for (i, field) in row.iter().enumerate() {
+        for (i, field) in row.cells.iter().enumerate() {
             if i > 0 {
                 rendered.push(' ');
             }
             rendered.push_str(field);
-            // The verdict is last; nothing after it needs padding unless a
-            // reason follows, and a reason is never padded to.
-            if i < 6 {
+            if i + 1 < columns {
                 let pad = width[i] - field.chars().count();
                 rendered.extend(std::iter::repeat_n(' ', pad));
             }
         }
-        if let Some(reason) = &line.reason {
+        if let Some(reason) = &row.reason {
             rendered.push_str(&format!(" ({reason})"));
         }
         out.push_str(rendered.trim_end());
         out.push('\n');
     }
+    out
+}
+
+/// Columns padded to their widest cell, verdict last, reason in parentheses
+/// after it. The verdict line is the last line of the report.
+fn render(lines: &[Line], passed: bool) -> String {
+    let rows: Vec<TableRow> = lines
+        .iter()
+        .map(|l| TableRow {
+            cells: l.cells().to_vec(),
+            reason: l.reason.clone(),
+        })
+        .collect();
+    let mut out = render_rows(&rows);
     out.push_str(if passed { "CHECK PASS" } else { "CHECK FAIL" });
     out.push('\n');
     out

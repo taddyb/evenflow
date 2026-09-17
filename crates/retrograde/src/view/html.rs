@@ -228,11 +228,15 @@ fn runs_table(runs: &[RunRow]) -> String {
     )
 }
 
-/// `GET /run/<id>` — header, Metrics, Sources, Config, Plots, Log, Notes.
+/// `GET /run/<id>` — header, Metrics, Reproductions, Sources, Config,
+/// Plots, Log, Notes. Reproductions sits under Metrics because it is a
+/// verdict on those numbers, and is absent when nobody has reproduced the
+/// run.
 pub fn profile(profile: &Profile) -> String {
     let mut body = String::new();
     body.push_str(&header_card(profile));
     body.push_str(&metrics_card(profile));
+    body.push_str(&reproductions_card(profile));
     body.push_str(&sources_card(profile));
     body.push_str(&config_card(profile));
     body.push_str(&plots_card(profile));
@@ -312,6 +316,53 @@ fn metrics_card(p: &Profile) -> String {
         "Metrics",
         &format!(r#"<table class="table table-sm mb-0"><tbody>{rows}</tbody></table>"#),
     )
+}
+
+/// The reproduction of this run, when there is one: when it ran, the run
+/// it produced, the verdict off the report's last line, and the report
+/// itself in a `<pre>` so its metric table keeps its columns.
+fn reproductions_card(p: &Profile) -> String {
+    let Some(r) = &p.reproduction else {
+        return String::new();
+    };
+    let run = if r.run_id.is_empty() {
+        "-".to_string()
+    } else {
+        format!(
+            r#"<a href="/run/{id}"><code>{id}</code></a>"#,
+            id = escape(&r.run_id)
+        )
+    };
+    card(
+        "Reproductions",
+        &format!(
+            r#"<p class="mb-2">{verdict}</p>
+    <dl class="row mb-2">
+      <dt class="col-sm-3">reproduced at</dt><dd class="col-sm-9">{at}</dd>
+      <dt class="col-sm-3">new run</dt><dd class="col-sm-9">{run}</dd>
+    </dl>
+    <pre class="mb-0"><code>{report}</code></pre>"#,
+            verdict = verdict_badge(&r.verdict),
+            at = escape(&r.at),
+            report = escape(&r.report),
+        ),
+    )
+}
+
+/// The verdict line as `reproduce` wrote it, matched against the constants
+/// `reproduce` writes. `NOT REPRODUCED` contains `REPRODUCED`, so the match
+/// is on the whole line and nothing else; anything unrecognised is shown
+/// verbatim rather than guessed at.
+fn verdict_badge(verdict: &str) -> String {
+    let class = match verdict {
+        crate::reproduce::REPRODUCED => "text-bg-success",
+        crate::reproduce::NOT_REPRODUCED => "text-bg-danger",
+        _ => "text-bg-secondary",
+    };
+    if verdict.is_empty() {
+        return badge("text-bg-secondary", "no verdict: the report is missing");
+    }
+    badge(class, verdict)
 }
 
 fn sources_card(p: &Profile) -> String {

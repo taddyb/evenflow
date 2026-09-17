@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 use retrograde::notes::{self, Export, NotesOptions};
 use retrograde::plot::{plot, PlotOptions};
+use retrograde::reproduce::{reproduce, ReproduceOptions};
 use retrograde::view::{serve, ViewOptions};
 use retrograde::{check, sweep, CheckOptions, SweepOptions};
 
@@ -50,6 +51,34 @@ enum Cmd {
     Check {
         /// Path to experiments/<name>/experiment.yaml.
         experiment: PathBuf,
+    },
+    /// Re-run a past run from its record and report whether its metrics
+    /// came back. <TARGET> is a run id or a path to a manifest.json.
+    Reproduce {
+        /// A run id under <workspace>/runs/, or a path to a record's
+        /// manifest.json (a committed experiment cell's, or a run's).
+        target: String,
+        /// Workspace root (default: nearest Cargo.toml with [workspace]).
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// ddrs binary (default: <root>/target/release/ddrs).
+        #[arg(long)]
+        ddrs: Option<PathBuf>,
+        /// ddrs workspace (default: <root>/crates/ddrs/.ddrs).
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+        /// Passed through to `ddrs run`.
+        #[arg(long, value_parser = ["cpu", "cuda"])]
+        backend: Option<String>,
+        /// Absolute tolerance each metric is judged against.
+        #[arg(long, default_value_t = 0.01)]
+        tolerance: f64,
+        /// Reproduce even though the data sources moved since the run.
+        #[arg(long)]
+        allow_drift: bool,
+        /// Verify the record and the sources, then stop without running.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Read and export the notes taken on a run. Notes live in
     /// .retrograde/notes.sqlite (gitignored); `export` is how one reaches
@@ -208,6 +237,36 @@ fn main() -> ExitCode {
             // process without coming back through here.
             match serve(&opts) {
                 Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+        Cmd::Reproduce {
+            target,
+            root,
+            ddrs,
+            workspace,
+            backend,
+            tolerance,
+            allow_drift,
+            dry_run,
+        } => {
+            let opts = ReproduceOptions {
+                target,
+                root,
+                ddrs,
+                workspace,
+                backend,
+                tolerance,
+                allow_drift,
+                dry_run,
+            };
+            // The report was printed as it was built, section by section;
+            // all that is left here is the verdict's exit code.
+            match reproduce(&opts) {
+                Ok(outcome) => ExitCode::from(outcome.verdict.exit_code()),
                 Err(e) => {
                     eprintln!("error: {e}");
                     ExitCode::from(2)

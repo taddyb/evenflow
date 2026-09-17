@@ -495,3 +495,124 @@ async fn a_broken_experiment_yaml_degrades_to_one_card() {
     );
     assert!(body.contains(DONE_RUN), "the runs table is gone");
 }
+
+/// The run id `retrograde reproduce <DONE_RUN>` gave the re-run.
+const REPRO_RUN: &str = "2026-09-16T14-51-39Z-train-and-test";
+
+/// What `retrograde reproduce <DONE_RUN>` leaves in the workspace: the
+/// record's `config.yaml`, the NEW run's `manifest.json`, and `report.txt`
+/// whose last line is the verdict. The drift lines are the `--allow-drift`
+/// shape, and carry the quotes that prove the report is escaped.
+fn write_reproduction(fx: &Fixture, verdict: &str) {
+    let dir = fx.workspace.join("reproductions").join(DONE_RUN);
+    write(
+        &dir.join("config.yaml"),
+        "mode: training\nworkflow: train-and-test\nseed: 42\n",
+    );
+    write(
+        &dir.join("manifest.json"),
+        &format!(
+            r#"{{
+  "run_id": "{REPRO_RUN}",
+  "workflow": "train-and-test",
+  "started_at": "2026-09-16T14:51:39Z",
+  "finished_at": "2026-09-16T14:52:00Z",
+  "status": "ok",
+  "sources": {{}},
+  "metrics": {{ "median_nse_finite": 0.7903451323509216 }}
+}}"#
+        ),
+    );
+    write(
+        &dir.join("report.txt"),
+        &format!(
+            "record\n  \
+             run id    {DONE_RUN}\n\
+             \nsources\n  \
+             error: data source drift since last plan: [\"attributes\"]\n  \
+             DRIFT ALLOWED\n\
+             \nrun\n  \
+             new run   {REPRO_RUN}\n\
+             \ncompare\n\
+             median_nse_finite   0.790345  0.790345  0  PASS\n\
+             n_gauges_total      1         1         0  PASS\n\
+             {verdict}\n"
+        ),
+    );
+}
+
+#[tokio::test]
+async fn profile_shows_the_reproduction_card_with_its_verdict_and_report() {
+    let fx = Fixture::new();
+    write_reproduction(&fx, "REPRODUCED");
+
+    let (status, body) = get(fx.app(), &format!("/run/{DONE_RUN}")).await;
+    assert_eq!(status, StatusCode::OK);
+
+    assert!(body.contains("Reproductions"), "no reproductions card");
+    // The new run: its manifest's timestamp, its id, linked to its profile.
+    assert!(
+        body.contains("2026-09-16T14:51:39Z"),
+        "no timestamp from the new manifest"
+    );
+    assert!(body.contains(REPRO_RUN), "no run id for the reproduction");
+    assert!(
+        body.contains(&format!(r#"href="/run/{REPRO_RUN}""#)),
+        "the reproduction's run id should link to its profile"
+    );
+    // The verdict, read off the report's last line.
+    assert!(
+        body.contains(r#"text-bg-success">REPRODUCED"#),
+        "no REPRODUCED badge"
+    );
+
+    // The report itself, in a <pre>, escaped.
+    let card = &body[body.find("Reproductions").expect("no card")..];
+    let table = card
+        .find("median_nse_finite")
+        .expect("the metric table is not on the card");
+    assert!(
+        card[..table].contains("<pre"),
+        "the report should be inside a <pre>"
+    );
+    assert!(
+        body.contains("median_nse_finite   0.790345  0.790345  0  PASS"),
+        "the report's metric table is missing"
+    );
+    assert!(
+        body.contains("[&quot;attributes&quot;]"),
+        "the report must be escaped on its way to the page"
+    );
+    assert!(
+        !body.contains(r#"["attributes"]"#),
+        "the report reached the page unescaped"
+    );
+}
+
+#[tokio::test]
+async fn a_run_with_no_reproduction_directory_has_no_card() {
+    let fx = Fixture::new();
+    let (status, body) = get(fx.app(), &format!("/run/{DONE_RUN}")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !body.contains("Reproductions"),
+        "nothing has reproduced this run, so there must be no card"
+    );
+}
+
+#[tokio::test]
+async fn a_failed_reproduction_is_not_shown_as_a_successful_one() {
+    let fx = Fixture::new();
+    write_reproduction(&fx, "NOT REPRODUCED");
+
+    let (status, body) = get(fx.app(), &format!("/run/{DONE_RUN}")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"text-bg-danger">NOT REPRODUCED"#),
+        "no NOT REPRODUCED badge"
+    );
+    assert!(
+        !body.contains(r#"text-bg-success">REPRODUCED"#),
+        "a failed reproduction must not read as a successful one"
+    );
+}
